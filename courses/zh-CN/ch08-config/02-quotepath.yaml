@@ -1,0 +1,43 @@
+id: config.quotepath
+title: 让中文路径正常显示（core.quotepath）
+source:
+  chapter: "8.1"
+  url: https://git-scm.com/book/zh/v2/Git-配置-Git
+prerequisites:
+  - config.alias
+intro: |-
+  Git 默认会对非 ASCII 路径（如中文文件名）做八进制引号转义，显示成
+  "\344\275\240\345\245\275" 这样的形式，不便阅读。把 core.quotepath 设为 false
+  可让 Git 原样输出中文路径。
+
+  - git config --global core.quotepath false
+  - 该配置只影响显示，不改变任何存储内容
+task: |-
+  配置 core.quotepath 为 false，让 Git 正确显示中文文件名路径：
+  运行 git config --global core.quotepath false。
+setup:
+  fixture:
+    - action: init
+objectives:
+  - 理解 core.quotepath 控制非 ASCII 路径的显示
+  - 能按场景调整全局配置项
+capabilities:
+  commands:
+    - config
+    - status
+    - log
+    - help
+checks:
+  - type: config_value
+    key: core.quotepath
+    value: "false"
+    scope: global
+hints:
+  - '设置全局配置：git config --global core.quotepath false'
+  - '查看是否生效：git config --global --get core.quotepath'
+explanation: |-
+  core.quotepath 是一个只影响「显示」的开关。设为 false 后，含中文的路径会原样呈现，
+  对仓库对象存储没有任何影响。这类「展示偏好」类配置非常适合放在 global 层级，对所有仓库生效。
+solution:
+  - action: git
+    args: ["config", "--global", "core.quotepath", "false"]

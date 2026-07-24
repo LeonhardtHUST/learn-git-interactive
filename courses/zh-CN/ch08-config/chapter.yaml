@@ -1,4 +1,6 @@
 id: ch08-config
 title: 第 8 章 Git 配置与钩子
 description: 配置层级（system/global/local）、gitattributes、客户端/服务端钩子与策略。
-lessons: []
+lessons:
+  - 01-alias.yaml
+  - 02-quotepath.yaml

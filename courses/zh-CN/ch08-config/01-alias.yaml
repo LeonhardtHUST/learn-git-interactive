@@ -1,0 +1,42 @@
+id: config.alias
+title: 配置 Git 别名
+source:
+  chapter: "8.1"
+  url: https://git-scm.com/book/zh/v2/Git-配置-Git
+prerequisites:
+  - basics.alias
+intro: |-
+  Git 允许为常用命令定义别名（alias），减少输入量。别名写在配置里：
+  git config --global alias.<短名> <命令>。
+
+  - git config --global alias.st status 之后，git st 就等于 git status
+  - 别名只替换子命令，其余参数照常传递
+  - 查看已有别名：git config --get-regexp alias
+task: |-
+  为 git status 创建一个全局别名 st：运行 git config --global alias.st status。
+  这样以后输入 git st 就能查看状态。
+setup:
+  fixture:
+    - action: init
+objectives:
+  - 理解别名是配置项 alias.<短名>
+  - 能创建并使用常用别名
+capabilities:
+  commands:
+    - config
+    - status
+    - log
+    - help
+checks:
+  - type: alias_defined
+    name: st
+hints:
+  - '创建别名：git config --global alias.st status'
+  - '之后可以用 git st 代替 git status（验证时仍可直接用 git status）'
+explanation: |-
+  别名保存在配置中（这里是沙箱隔离的 global 配置）。git st 会被 Git 展开成 git status。
+  你还可以为更复杂的命令设别名，例如
+  git config --global alias.lg "log --oneline --graph"。
+solution:
+  - action: git
+    args: ["config", "--global", "alias.st", "status"]
