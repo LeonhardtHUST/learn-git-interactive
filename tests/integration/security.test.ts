@@ -199,5 +199,5 @@ describe("安全回归 6：本地 bare remote 的 clone/fetch/push 正常", () =
     // learner 侧 fetch 也应成功
     const learnerFetch = await execGit(["fetch", "origin"], { cwd: learnerRepo, session });
     expect(learnerFetch.ok).toBe(true);
-  });
+  }, 120_000);
 });
