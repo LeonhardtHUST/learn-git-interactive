@@ -1,0 +1,67 @@
+id: migration.import-bundle
+title: 从 bundle 校验并导入仓库
+source:
+  chapter: "9.1"
+  url: https://git-scm.com/book/zh/v2/Git-工具-打包
+prerequisites:
+  - migration.export-bundle
+intro: |-
+  拿到一个 bundle 文件后，先 git bundle verify 确认它包含所需引用且完整，
+  再用 git fetch <bundle文件> <引用>:<新分支> 把提交取回本地。
+
+  - git bundle verify import.bundle 校验
+  - git fetch import.bundle main:imported 把 bundle 里的 main 取回为 imported 分支
+task: |-
+  仓库里已有一个 import.bundle（包含 main 的完整历史）。
+  请校验它，并把其中的 main 取回到一个名为 imported 的本地分支：
+  1) git bundle verify import.bundle
+  2) git fetch import.bundle main:imported
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: a.txt
+      content: "v1\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "c1"]
+    - action: write
+      path: a.txt
+      content: "v2\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "c2"]
+    - action: git
+      args: ["bundle", "create", "import.bundle", "--all"]
+objectives:
+  - 能校验 bundle 的完整性
+  - 能用 git fetch 从 bundle 取回引用
+capabilities:
+  commands:
+    - bundle
+    - fetch
+    - status
+    - log
+    - branch
+    - rev-parse
+    - show
+    - help
+checks:
+  - type: branch_exists
+    name: imported
+  - type: ref_is_ancestor_of_head
+    ref: imported
+hints:
+  - '先校验：git bundle verify import.bundle'
+  - '取回 main 到 imported 分支：git fetch import.bundle main:imported'
+explanation: |-
+  git fetch import.bundle main:imported 会在本地新建 imported 分支，指向 bundle 中 main 所指向的提交。
+  由于这些提交本来就来自当前仓库的历史，imported 自然是当前 HEAD 的祖先——这正是迁移/恢复时
+  「把提交原样搬回来」的效果。
+solution:
+  - action: git
+    args: ["bundle", "verify", "import.bundle"]
+  - action: git
+    args: ["fetch", "import.bundle", "main:imported"]

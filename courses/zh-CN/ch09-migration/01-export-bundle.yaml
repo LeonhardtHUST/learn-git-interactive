@@ -1,0 +1,58 @@
+id: migration.export-bundle
+title: 把仓库导出为 bundle 文件
+source:
+  chapter: "9.1"
+  url: https://git-scm.com/book/zh/v2/Git-工具-打包
+prerequisites:
+  - branch.push
+intro: |-
+  git bundle 能把整个仓库（或一个分支、一段历史）打包成一个普通的单文件，
+  便于在没有网络的环境里通过 U 盘、邮件等方式搬运。
+
+  - git bundle create <文件> <引用> 生成 bundle
+  - git bundle verify <文件> 校验 bundle 是否完整可用
+  - 对方拿到文件后可用 git clone / git fetch 从中取回提交
+task: |-
+  仓库已有若干提交。请把整个仓库导出为一个名为 repo.bundle 的单文件：
+  运行 git bundle create repo.bundle --all。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: a.txt
+      content: "v1\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "c1"]
+    - action: write
+      path: a.txt
+      content: "v2\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "c2"]
+objectives:
+  - 理解 bundle 是仓库的离线单文件镜像
+  - 能用 git bundle create 导出仓库
+capabilities:
+  commands:
+    - bundle
+    - status
+    - log
+    - commit
+    - add
+    - rev-parse
+    - help
+checks:
+  - type: file_exists
+    path: repo.bundle
+hints:
+  - '导出整个仓库：git bundle create repo.bundle --all'
+  - '生成后可以 git bundle verify repo.bundle 检查完整性'
+explanation: |-
+  repo.bundle 是仓库的离线镜像，包含了所有可达对象。把它拷到另一台机器，
+  对方就能用 git clone repo.bundle 直接克隆，无需任何网络。这在受限环境或离线迁移时非常实用。
+solution:
+  - action: git
+    args: ["bundle", "create", "repo.bundle", "--all"]

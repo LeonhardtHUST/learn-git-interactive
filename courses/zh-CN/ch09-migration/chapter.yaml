@@ -1,4 +1,6 @@
 id: ch09-migration
 title: 第 9 章 迁移到其他系统
 description: 从 Subversion、Mercurial、Perforce、TFS 等系统迁移到 Git 的思路与工具。
-lessons: []
+lessons:
+  - 01-export-bundle.yaml
+  - 02-import-bundle.yaml
