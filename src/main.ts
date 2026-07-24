@@ -7,8 +7,12 @@
  * @license MIT (程序代码) / CC BY-NC-SA 3.0 (课程内容)
  */
 
-async function main(): Promise<void> {
-  console.log("learn-git-interactive v0.1.0");
+import { startTui } from "./tui/app";
+
+export async function main(): Promise<void> {
+  await startTui();
 }
 
-main();
+if (import.meta.main) {
+  main();
+}
