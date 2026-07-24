@@ -1,0 +1,10 @@
+id: ch03-branch
+title: 第 3 章 Git 分支
+description: 分支是 Git 的杀手锏：创建、切换、合并、解决冲突、与远程协作、变基。
+lessons:
+  - 01-create-switch.yaml
+  - 02-merge.yaml
+  - 03-conflict.yaml
+  - 04-push.yaml
+  - 05-pull.yaml
+  - 06-rebase.yaml

@@ -1,0 +1,52 @@
+id: start.config
+title: 自报家门：配置身份
+source:
+  chapter: "1.6"
+  url: https://git-scm.com/book/zh/v2/起步-初次运行-Git-前的配置
+prerequisites: []
+intro: |-
+  Git 的每一个提交都会记录作者的名字和邮箱，这是历史追溯的基石。
+  在开始使用 Git 前，第一件事就是告诉它"你是谁"。
+
+  `git config` 有三个层级：系统级（--system）、用户级（--global）和仓库级（默认）。
+  用户级配置写入你的个人配置文件，对你的所有仓库生效，是最常用的层级。
+
+  放心练习：本课程运行在隔离沙箱中，这里的 --global 只会写入课程环境，
+  不会碰到你电脑上真实的 Git 配置。
+task: |-
+  用 git config 完成用户级（--global）配置：
+  1. 把 user.name 设置为：练习者
+  2. 把 user.email 设置为：practice@example.com
+  然后用 git config --list 检查配置结果。
+setup:
+  fixture:
+    - action: init
+objectives:
+  - 用户级 user.name 已设置为「练习者」
+  - 用户级 user.email 已设置为「practice@example.com」
+capabilities:
+  commands:
+    - config
+    - help
+checks:
+  - type: config_value
+    key: user.name
+    value: 练习者
+    scope: global
+  - type: config_value
+    key: user.email
+    value: practice@example.com
+    scope: global
+hints:
+  - 配置命令的一般形式是 git config --global <键> <值>。
+  - 键名分别是 user.name 和 user.email；值里有空格时记得加引号。
+  - 'git config --global user.name "练习者"，邮箱同理。'
+explanation: |-
+  --global 写入用户级配置文件（通常是 ~/.gitconfig）。
+  查看配置及其来源可以用：git config --list --show-origin。
+  单独读取某一项：git config user.name。
+solution:
+  - action: git
+    args: ["config", "--global", "user.name", "练习者"]
+  - action: git
+    args: ["config", "--global", "user.email", "practice@example.com"]

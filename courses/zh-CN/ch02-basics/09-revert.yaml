@@ -1,0 +1,59 @@
+id: basics.revert
+title: 体面地撤销：revert
+source:
+  chapter: "2.4"
+prerequisites:
+  - basics.unstage
+intro: |-
+  当一个"坏提交"已经进入历史（甚至已经推送给别人），
+  不能再用 --amend 或 reset 抹掉它——那会破坏协作者的历史。
+
+  git revert 是体面的做法：它创建一个"反向提交"，
+  把坏提交的改动原样撤销。历史保持完整，撤销本身也有据可查。
+task: |-
+  最近一次提交误把调试开关文件 debug_flag.txt 加进了仓库。
+  用 git revert 撤销最近一次提交（可以加 --no-edit 直接使用默认提交信息）。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: app.py
+      content: "print('app')\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "应用主体"]
+    - action: write
+      path: debug_flag.txt
+      content: "debug=true\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "引入调试开关"]
+objectives:
+  - debug_flag.txt 已被撤销（文件消失）
+  - 历史中新增了一个 revert 提交，原提交仍在
+capabilities:
+  commands:
+    - log
+    - revert
+    - status
+checks:
+  - type: file_absent
+    path: debug_flag.txt
+  - type: commit_count_at_least
+    count: 3
+  - type: commit_message_exists
+    contains: 引入调试开关
+  - type: worktree_clean
+hints:
+  - 撤销最近一次提交：revert 的目标可以写 HEAD。
+  - 加 --no-edit 可以跳过编辑提交信息的步骤。
+  - git revert --no-edit HEAD
+explanation: |-
+  看 git log：原提交「引入调试开关」还在历史里，
+  上面多了一个 Revert 提交把它的改动反向抵消。
+  这就是公开历史的正确撤销方式——加法，而不是删除。
+solution:
+  - action: git
+    args: ["revert", "--no-edit", "HEAD"]

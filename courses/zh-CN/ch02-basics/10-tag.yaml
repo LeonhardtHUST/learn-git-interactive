@@ -1,0 +1,50 @@
+id: basics.tag
+title: 里程碑：附注标签
+source:
+  chapter: "2.6"
+prerequisites:
+  - basics.revert
+intro: |-
+  发布版本时要在历史上钉一颗图钉，这就是标签。Git 有两种标签：
+
+  - 轻量标签：只是一个指向提交的名字（git tag v1.0）
+  - 附注标签：完整的对象，带打标签者、日期和说明（git tag -a）
+
+  发布版本一律推荐附注标签——它记录了"谁在什么时候发布了什么"。
+task: |-
+  当前代码已经可以发布 1.0 了。
+  给当前提交打一个附注标签 v1.0.0，标签说明中包含「正式发布」。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: main.py
+      content: "VERSION = '1.0.0'\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "1.0.0 版本代码就绪"]
+objectives:
+  - 附注标签 v1.0.0 已创建并指向当前提交
+capabilities:
+  commands:
+    - tag
+    - show
+    - log
+checks:
+  - type: tag_exists
+    name: v1.0.0
+    annotated: true
+  - type: refs_equal
+    a: refs/tags/v1.0.0^{commit}
+    b: HEAD
+hints:
+  - 附注标签需要 -a 参数。
+  - 用 -m 直接给出标签说明。
+  - 'git tag -a v1.0.0 -m "正式发布 1.0.0"'
+explanation: |-
+  git show v1.0.0 会先显示标签对象本身（打标签者、日期、说明），
+  再显示它指向的提交。轻量标签则没有前半部分——它根本不是对象，只是引用。
+solution:
+  - action: git
+    args: ["tag", "-a", "v1.0.0", "-m", "正式发布 1.0.0"]

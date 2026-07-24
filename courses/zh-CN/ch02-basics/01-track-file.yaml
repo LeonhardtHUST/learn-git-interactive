@@ -1,0 +1,49 @@
+id: basics.track-file
+title: 开始跟踪新文件
+source:
+  chapter: "2.2"
+prerequisites:
+  - start.first-commit
+intro: |-
+  仓库中的文件只有两种状态：已跟踪（tracked）和未跟踪（untracked）。
+  已跟踪的文件又分为：未修改、已修改、已暂存。
+
+  git status 是你的仪表盘——它告诉你每个文件此刻处在哪个状态，
+  以及可以用什么命令把它推进到下一个状态。
+task: |-
+  项目里刚创建了一个新文件 docs/guide.md，Git 还没有跟踪它。
+  用 git add 把它加入暂存区，让它出现在下一次提交的清单里。
+  （本关只需要暂存，不需要提交。）
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: README.md
+      content: "# 示例项目\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "初始化项目"]
+    - action: write
+      path: docs/guide.md
+      content: "# 使用指南\n待编写。\n"
+objectives:
+  - docs/guide.md 已进入暂存区
+capabilities:
+  commands:
+    - status
+    - add
+    - help
+checks:
+  - type: index_contains
+    path: docs/guide.md
+hints:
+  - 先用 git status 看看 Git 眼中的 docs/guide.md 是什么状态。
+  - git add 可以接受文件路径，包括子目录里的文件。
+  - git add docs/guide.md
+explanation: |-
+  git status 现在会把 docs/guide.md 列在「要提交的变更」里，状态是 new file。
+  add 同时做两件事：让未跟踪文件变为已跟踪，并把当前内容放入暂存区。
+solution:
+  - action: git
+    args: ["add", "docs/guide.md"]

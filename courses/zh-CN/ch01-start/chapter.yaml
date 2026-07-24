@@ -1,0 +1,7 @@
+id: ch01-start
+title: 第 1 章 起步
+description: 认识 Git 的心智模型，完成初次运行前的配置，并创建你的第一个仓库。
+lessons:
+  - 01-config.yaml
+  - 02-init.yaml
+  - 03-first-commit.yaml

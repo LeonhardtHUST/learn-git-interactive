@@ -1,0 +1,56 @@
+id: basics.alias
+title: 顺手的快捷键：Git 别名
+source:
+  chapter: "2.7"
+prerequisites:
+  - basics.tag
+intro: |-
+  每天要敲几十遍 git status？给它起个短名字吧。
+
+  git config --global alias.st status
+  之后 git st 就等价于 git status。
+
+  资深用户的经典配置还有：co=checkout、br=branch、
+  以及花哨的 lg="log --oneline --graph --all"。
+task: |-
+  配置两个用户级别名：
+  1. st  → status
+  2. last → "log -1 HEAD"（查看最近一次提交）
+  然后用 git st 和 git last 验证效果。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: readme.md
+      content: "alias 练习\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "初始提交"]
+objectives:
+  - 别名 st 已定义
+  - 别名 last 已定义
+capabilities:
+  commands:
+    - config
+    - status
+    - log
+    - st
+    - last
+checks:
+  - type: alias_defined
+    name: st
+  - type: alias_defined
+    name: last
+hints:
+  - 别名配置的键是 alias.<名字>，值是被替换的命令。
+  - 值里有空格时要加引号。
+  - git config --global alias.st status，然后 git config --global alias.last "log -1 HEAD"
+explanation: |-
+  别名保存在配置文件的 [alias] 段里。
+  注意：以 ! 开头的别名会执行外部 shell 命令，本课程出于安全考虑禁止这种形式。
+solution:
+  - action: git
+    args: ["config", "--global", "alias.st", "status"]
+  - action: git
+    args: ["config", "--global", "alias.last", "log -1 HEAD"]

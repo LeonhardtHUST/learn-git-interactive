@@ -1,0 +1,61 @@
+id: basics.diff
+title: 火眼金睛：用 diff 甄别改动
+source:
+  chapter: "2.2"
+prerequisites:
+  - basics.staging
+intro: |-
+  git diff 逐行显示改动内容：减号行是删掉的，加号行是新增的。
+
+  两个最常用的形态：
+  - git diff           工作区 vs 暂存区（还没暂存的改动）
+  - git diff --staged  暂存区 vs 上次提交（将要提交的改动）
+
+  提交前扫一眼 diff，是避免把调试代码提交上去的最后防线。
+task: |-
+  calc.py 和 utils.py 都有未暂存的修改，但其中一个混入了标着 FIXME 的调试代码。
+  用 git diff 检查两个文件的改动，只把"干净"的那个文件暂存起来。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: calc.py
+      content: "def add(a, b):\n    return a + b\n"
+    - action: write
+      path: utils.py
+      content: "def helper():\n    return 1\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "初始代码"]
+    - action: append
+      path: calc.py
+      content: "\ndef sub(a, b):\n    return a - b\n"
+    - action: append
+      path: utils.py
+      content: "\n# FIXME 调试用，别提交\nprint('debug')\n"
+objectives:
+  - 干净的 calc.py 已进入暂存区
+  - 含 FIXME 的 utils.py 未被暂存
+capabilities:
+  commands:
+    - status
+    - diff
+    - add
+checks:
+  - type: index_contains
+    path: calc.py
+  - type: index_not_contains
+    path: utils.py
+  - type: worktree_modified
+    path: utils.py
+hints:
+  - git diff 一次显示所有未暂存改动，也可以 git diff utils.py 只看一个文件。
+  - 找到 FIXME 出现在哪个文件里，暂存另一个。
+  - git add calc.py
+explanation: |-
+  暂存后再运行 git diff --staged，就能预览"即将提交的内容"。
+  养成习惯：commit 之前先看一眼 --staged 的输出。
+solution:
+  - action: git
+    args: ["add", "calc.py"]

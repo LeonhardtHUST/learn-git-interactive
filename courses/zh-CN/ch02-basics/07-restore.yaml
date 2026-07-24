@@ -1,0 +1,51 @@
+id: basics.restore
+title: 撤销工作区的修改
+source:
+  chapter: "2.4"
+prerequisites:
+  - basics.amend
+intro: |-
+  改乱了一个文件，想回到上次提交时的样子？
+  git restore <文件> 会用暂存区（或最近提交）的版本覆盖工作区。
+
+  ⚠️ 这是少数真正"销毁数据"的命令之一：
+  被丢弃的工作区修改从未进入过 Git，无法找回。用之前想清楚。
+task: |-
+  config.ini 被误改成了错误配置（mode=chaos）。
+  用 git restore 丢弃工作区的修改，让它回到上次提交的正确内容。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: config.ini
+      content: "mode=safe\nretries=3\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "正确的配置"]
+    - action: write
+      path: config.ini
+      content: "mode=chaos\nretries=9999\n"
+objectives:
+  - config.ini 已恢复为上次提交的内容
+  - 工作区干净
+capabilities:
+  commands:
+    - status
+    - diff
+    - restore
+checks:
+  - type: file_content
+    path: config.ini
+    contains: mode=safe
+  - type: worktree_clean
+hints:
+  - git status 会提示你用哪个命令丢弃工作区改动。
+  - git restore config.ini
+explanation: |-
+  旧版 Git 用 git checkout -- <文件> 做同样的事；
+  restore 是 2.23 引入的更清晰的替代品。
+  如果只想暂时收起改动而不是销毁，请用第 7 章的 git stash。
+solution:
+  - action: git
+    args: ["restore", "config.ini"]

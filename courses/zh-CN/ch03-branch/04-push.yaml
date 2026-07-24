@@ -1,0 +1,57 @@
+id: branch.push
+title: 推送到远程仓库
+source:
+  chapter: "3.5"
+  url: https://git-scm.com/book/zh/v2/Git-分支-远程分支
+prerequisites:
+  - branch.conflict
+intro: |-
+  远程仓库（如 GitHub）是多人协作的中转站。git push 把本地分支的提交上传到远程，
+  -u（--set-upstream）还会把本地分支和远程分支「关联」起来，之后直接 git push / git pull 即可。
+
+  本关的远程 origin 是一个本地 bare 仓库，用来在课程内安全地模拟真实远程。
+task: |-
+  仓库已经关联了名为 origin 的远程。请把本地的 main 分支推送上去，
+  并通过 -u 建立 upstream 跟踪关系。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: hello.txt
+      content: "你好，世界\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: bare_remote
+      name: origin
+objectives:
+  - 远程 origin 已经收到 main 分支
+  - 本地 main 与 origin/main 建立了上游跟踪
+capabilities:
+  commands:
+    - status
+    - remote
+    - branch
+    - push
+    - log
+    - help
+checks:
+  - type: remote_exists
+    name: origin
+  - type: upstream_set
+    branch: main
+    upstream: origin/main
+  - type: remote_branch_contains
+    remoteRef: origin/main
+    localRef: main
+hints:
+  - 看看远程叫什么：git remote -v
+  - 推送并建立跟踪：git push -u origin main
+  - 完成后 git branch -vv 能看到 main 后面跟着 [origin/main]
+explanation: |-
+  现在远程 origin 有了 main 分支，且它和本地 main 互相关联。
+  以后在这个分支上只需 git push / git pull，Git 就知道该和谁同步。
+solution:
+  - action: git
+    args: ["push", "-u", "origin", "main"]

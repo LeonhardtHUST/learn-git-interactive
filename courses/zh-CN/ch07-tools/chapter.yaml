@@ -1,0 +1,6 @@
+id: ch07-tools
+title: 第 7 章 Git 高频工具
+description: 进阶但极其实用的日常工具：用 reflog 挽救误删的提交、用 stash 临时收起未完成的工作。
+lessons:
+  - 01-reflog.yaml
+  - 02-stash.yaml

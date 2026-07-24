@@ -1,0 +1,54 @@
+id: tools.stash
+title: 用 stash 暂存未完成的工作
+source:
+  chapter: "7.3"
+  url: https://git-scm.com/book/zh/v2/Git-工具-储藏与清理
+prerequisites:
+  - tools.reflog
+intro: |-
+  有时你正在修改文件、却还没到能提交的程度，却又必须立刻切换分支去处理别的事。
+  直接切换会被 Git 拦下（怕你丢掉改动）。git stash 可以把当前未提交的修改
+  「暂存」到一个栈里，让工作区恢复干净；事后再 git stash pop 取回来。
+
+  stash 里的内容不会丢，可以多次 push、查看（git stash list）、恢复。
+task: |-
+  你给 todo.txt 加了一行 task2，但还没提交。现在需要临时切走处理别的事。
+  请先用 git stash 把改动收起来，让工作区恢复到干净状态。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: todo.txt
+      content: "task1\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: write
+      path: todo.txt
+      content: "task1\ntask2\n"
+objectives:
+  - 改动已存入 stash（至少 1 条 stash 记录）
+  - 工作区恢复干净（没有未提交的修改）
+capabilities:
+  commands:
+    - status
+    - stash
+    - diff
+    - log
+    - help
+checks:
+  - type: stash_count_at_least
+    count: 1
+  - type: worktree_clean
+hints:
+  - 看看当前改动：git status / git diff
+  - 把改动收起来：git stash
+  - 收起后再 git status，工作区就干净了；git stash list 能看到刚才那一笔
+explanation: |-
+  git stash 把你工作区和暂存区的改动做成一个临时提交存进 stash 栈，
+  工作区于是回到最近一次提交的样子。需要时 git stash pop（或 git stash apply）
+  即可把改动原样取回，继续未完成的工作。
+solution:
+  - action: git
+    args: ["stash"]

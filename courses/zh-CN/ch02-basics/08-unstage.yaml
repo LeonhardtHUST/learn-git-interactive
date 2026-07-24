@@ -1,0 +1,64 @@
+id: basics.unstage
+title: 把文件请出暂存区
+source:
+  chapter: "2.4"
+prerequisites:
+  - basics.restore
+intro: |-
+  手一滑 git add . 把不该提交的文件也暂存了？
+  git restore --staged <文件> 可以把它从暂存区撤下来，
+  同时保留工作区里的修改——一根汗毛都不会少。
+
+  对比记忆：
+  - git restore <文件>            丢弃工作区修改（危险）
+  - git restore --staged <文件>   仅取消暂存（安全）
+task: |-
+  scratch.txt 是随手记的草稿，却被一并暂存了。
+  把 scratch.txt 移出暂存区，但保留它在工作区的修改。
+  （另一个文件 feature.py 应继续留在暂存区。）
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: feature.py
+      content: "def feature(): pass\n"
+    - action: write
+      path: scratch.txt
+      content: "草稿\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "初始状态"]
+    - action: append
+      path: feature.py
+      content: "def feature_v2(): pass\n"
+    - action: append
+      path: scratch.txt
+      content: "乱七八糟的想法\n"
+    - action: git
+      args: ["add", "."]
+objectives:
+  - scratch.txt 已不在暂存区，但工作区修改保留
+  - feature.py 仍在暂存区
+capabilities:
+  commands:
+    - status
+    - restore
+    - diff
+checks:
+  - type: index_not_contains
+    path: scratch.txt
+  - type: worktree_modified
+    path: scratch.txt
+  - type: index_contains
+    path: feature.py
+hints:
+  - git status 的「要提交的变更」下方就写着取消暂存的命令。
+  - 注意加上 --staged，否则会变成丢弃工作区修改！
+  - git restore --staged scratch.txt
+explanation: |-
+  --staged 只动暂存区：把该文件的暂存内容恢复成 HEAD 的版本。
+  工作区文件完全不受影响。这也是 git status 首行提示推荐的做法。
+solution:
+  - action: git
+    args: ["restore", "--staged", "scratch.txt"]

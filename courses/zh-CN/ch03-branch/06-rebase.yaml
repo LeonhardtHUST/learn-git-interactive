@@ -1,0 +1,79 @@
+id: branch.rebase
+title: 变基：让历史保持线性
+source:
+  chapter: "3.6"
+  url: https://git-scm.com/book/zh/v2/Git-分支-变基
+prerequisites:
+  - branch.pull
+intro: |-
+  rebase（变基）是 merge 的另一种整合方式：它把当前分支的提交「摘下来」，
+  临时保存差异，然后接到目标分支的最新提交之后重新「播放」一遍。
+
+  结果是一条干净的线性历史，没有合并提交——很多团队更偏爱这种清爽的提交线。
+
+  注意：只对你自己还没推送的提交做 rebase；不要对已经共享的提交变基。
+task: |-
+  当前你在 main，而 feature 是从较旧的 main 分出去的。请把 feature 变基到
+  main 之上，让 feature 的历史变成一条直线、且基于最新的 main。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: app.js
+      content: "console.log('app');\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: git
+      args: ["switch", "-c", "feature"]
+    - action: write
+      path: feature.txt
+      content: "console.log('feature');\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "feature: 新增 feature.txt"]
+    - action: git
+      args: ["switch", "main"]
+    - action: write
+      path: main.txt
+      content: "console.log('main');\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "main: 新增 main.txt"]
+objectives:
+  - feature 已变基到 main 之上
+  - feature 的历史是线性的（没有合并提交）
+  - main 的提交位于 feature 历史之中
+capabilities:
+  commands:
+    - status
+    - branch
+    - switch
+    - checkout
+    - rebase
+    - log
+    - help
+checks:
+  - type: current_branch
+    name: feature
+  - type: is_linear_history
+    ref: feature
+  - type: ref_is_ancestor_of_head
+    ref: main
+  - type: file_exists
+    path: feature.txt
+hints:
+  - 先切到 feature：git switch feature
+  - 再把 feature 变基到 main：git rebase main
+  - 用 git log --graph --oneline 对比变基前后——现在是一条直线了
+explanation: |-
+  变基后 feature 的提交被「重放」在 main 最新提交之后，于是 feature 的历史里
+  包含了 main 的全部提交，且不再有分叉。提交线因此保持线性、易于阅读。
+solution:
+  - action: git
+    args: ["switch", "feature"]
+  - action: git
+    args: ["rebase", "main"]

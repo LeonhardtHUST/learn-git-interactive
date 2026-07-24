@@ -1,0 +1,88 @@
+id: branch.conflict
+title: 解决合并冲突
+source:
+  chapter: "3.3"
+  url: https://git-scm.com/book/zh/v2/Git-分支-分支的新建与合并
+prerequisites:
+  - branch.merge
+intro: |-
+  当 main 和 feature 修改了同一个文件的同一区域，Git 无法自动决定取舍，
+  就会标记冲突，把两个版本都写进文件，等你人工裁决。
+
+  冲突文件里会出现这样的标记：
+    <<<<<<< HEAD          （当前分支的内容）
+    =======               （分隔线）
+    >>>>>>> feature       （要合并进来的分支的内容）
+
+  解决冲突 = 编辑文件去掉这些标记、保留你想要的版本 → git add → git commit 完成合并。
+task: |-
+  合并 feature 时出现了冲突（story.txt 被双方都改过）。请手动编辑 story.txt，
+  去掉冲突标记并同时保留双方的修改，然后完成这次合并提交。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: story.txt
+      content: "开篇第一句。\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: git
+      args: ["switch", "-c", "feature"]
+    - action: write
+      path: story.txt
+      content: "开篇第一句。\n来自 feature 的修改。\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "feature 修改 story"]
+    - action: git
+      args: ["switch", "main"]
+    - action: write
+      path: story.txt
+      content: "开篇第一句。\n来自 main 的修改。\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "main 修改 story"]
+objectives:
+  - 冲突已解决并提交（没有遗留未解决的冲突）
+  - story.txt 同时保留了 main 与 feature 的修改
+capabilities:
+  commands:
+    - status
+    - branch
+    - switch
+    - merge
+    - add
+    - commit
+    - log
+    - help
+checks:
+  - type: no_conflict
+  - type: head_has_parents
+    count: 2
+  - type: file_content
+    path: story.txt
+    contains: 来自 feature 的修改
+  - type: file_content
+    path: story.txt
+    contains: 来自 main 的修改
+hints:
+  - 先运行 git merge feature 触发冲突，再用 git status 看哪个文件冲突了
+  - 打开 story.txt，删除 <<<<<<< / ======= / >>>>>>> 这些标记，留下你想要的文本
+  - 解决后用 git add story.txt，再 git commit 完成合并（提交信息可用默认的）
+explanation: |-
+  冲突不是错误，而是 Git 把「决定权」交还给你。一旦你 git add 了解决后的文件，
+  Git 就认为冲突已化解，git commit 会生成合并提交收尾。
+solution:
+  - action: git_try
+    args: ["merge", "feature"]
+  - action: write
+    path: story.txt
+    content: "开篇第一句。\n来自 main 的修改。\n来自 feature 的修改。\n"
+  - action: git
+    args: ["add", "story.txt"]
+  - action: git
+    args: ["commit", "-m", "merge feature：解决冲突"]

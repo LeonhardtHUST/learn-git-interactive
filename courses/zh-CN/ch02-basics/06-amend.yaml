@@ -1,0 +1,55 @@
+id: basics.amend
+title: 悔棋一步：修补最近的提交
+source:
+  chapter: "2.4"
+prerequisites:
+  - basics.log-detective
+intro: |-
+  刚提交完就发现提交信息写错了字？或者忘了把一个文件加进去？
+  git commit --amend 可以"重做"最近一次提交：
+  它用暂存区的当前内容 + 新的提交信息，替换掉最近的提交。
+
+  ⚠️ 铁律：--amend 会改写历史，只能用于还没推送出去的提交。
+task: |-
+  最近一次提交的信息把「登录」写成了「登陆」。
+  用 git commit --amend 把提交信息修正为「添加登录功能」。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: base.txt
+      content: "base\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "项目基础"]
+    - action: write
+      path: login.py
+      content: "def login(): pass\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "添加登陆功能"]
+objectives:
+  - 最新提交信息为「添加登录功能」
+  - 历史仍然只有两个提交（没有多出新提交）
+capabilities:
+  commands:
+    - log
+    - commit
+    - status
+checks:
+  - type: head_commit_message
+    contains: 添加登录功能
+  - type: is_linear_history
+  - type: commit_count_at_least
+    count: 2
+hints:
+  - --amend 配合 -m 可以直接给出新的提交信息。
+  - 'git commit --amend -m "添加登录功能"'
+explanation: |-
+  注意 git log 里提交的哈希变了——amend 不是"编辑"，
+  而是创建了一个全新的提交对象来替换旧的。这就是它不能用于已推送提交的原因。
+solution:
+  - action: git
+    args: ["commit", "--amend", "-m", "添加登录功能"]

@@ -1,0 +1,72 @@
+id: branch.merge
+title: 合并分支：把 feature 合进 main
+source:
+  chapter: "3.2"
+  url: https://git-scm.com/book/zh/v2/Git-分支-分支的新建与合并
+prerequisites:
+  - branch.create-switch
+intro: |-
+  当 feature 上的工作完成时，需要把它合并回 main。git merge 会找到两个分支的
+  共同祖先（合并基），并把差异整合起来。
+
+  本关里 main 和 feature 各自向前走了一步（改了不同的文件），构成「分叉」历史，
+  因此合并会产生一个拥有两个父提交的「合并提交」。
+task: |-
+  当前你在 main 分支。请把 feature 分支合并进来，生成一个合并提交。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: app.js
+      content: "console.log('app');\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "add app"]
+    - action: git
+      args: ["switch", "-c", "feature"]
+    - action: write
+      path: feature.js
+      content: "console.log('feature');\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "feature: 新增 feature.js"]
+    - action: git
+      args: ["switch", "main"]
+    - action: write
+      path: main.txt
+      content: "console.log('main');\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "main: 新增 main.txt"]
+objectives:
+  - 已把 feature 合并到 main
+  - 合并后生成一个合并提交（有两个父提交）
+capabilities:
+  commands:
+    - status
+    - branch
+    - switch
+    - merge
+    - log
+    - help
+checks:
+  - type: branch_exists
+    name: feature
+  - type: no_conflict
+  - type: head_has_parents
+    count: 2
+  - type: commit_message_exists
+    contains: feature
+hints:
+  - 你正站在 main 上，用 git merge feature 把对方合进来
+  - 因为两边改的是不同文件，合并不会产生冲突
+  - 合并完成后用 git log --graph --oneline 看看那颗「有两个父亲」的提交
+explanation: |-
+  合并提交同时指向 main 原来的提交和 feature 的提交，于是两条开发线汇成一条。
+  下次 git log 会看到一颗分叉再汇合的历史树。
+solution:
+  - action: git
+    args: ["merge", "feature"]

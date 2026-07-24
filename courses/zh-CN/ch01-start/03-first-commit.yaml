@@ -1,0 +1,53 @@
+id: start.first-commit
+title: 第一个快照：add 与 commit
+source:
+  chapter: "2.2"
+  url: https://git-scm.com/book/zh/v2/Git-基础-记录每次更新到仓库
+prerequisites:
+  - start.init
+intro: |-
+  提交（commit）是 Git 的原子单位：一份完整的项目快照，附带作者、时间和说明。
+
+  创建提交分两步走：
+  1. git add 把变化放入暂存区——像把货物装进集装箱
+  2. git commit 把整个集装箱封箱入库——快照从此永久保存
+
+  这个"两步走"让你可以精确控制每次提交包含什么。
+task: |-
+  仓库里有一个未跟踪的文件 hello.txt。
+  1. 用 git add 开始跟踪它
+  2. 用 git commit 创建你的第一个提交，提交信息中请包含「首次提交」四个字
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: hello.txt
+      content: "你好，Git！\n"
+objectives:
+  - hello.txt 已被提交进仓库
+  - 提交信息包含「首次提交」
+capabilities:
+  commands:
+    - status
+    - add
+    - commit
+    - log
+    - help
+checks:
+  - type: commit_count_at_least
+    count: 1
+  - type: head_commit_message
+    contains: 首次提交
+  - type: worktree_clean
+hints:
+  - 先 git add hello.txt，再 git commit。
+  - 用 -m 直接在命令行里写提交信息。
+  - 'git commit -m "首次提交：添加 hello.txt"'
+explanation: |-
+  git log 现在能看到你的提交：一串十六进制的提交 ID（SHA-1 哈希）唯一标识这个快照。
+  以后无论文件怎么改，这个快照都能原样找回。
+solution:
+  - action: git
+    args: ["add", "hello.txt"]
+  - action: git
+    args: ["commit", "-m", "首次提交：添加 hello.txt"]

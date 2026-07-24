@@ -1,0 +1,15 @@
+id: ch02-basics
+title: 第 2 章 Git 基础
+description: 掌握日常工作流：跟踪文件、精确暂存、查看差异与历史、撤销操作、标签与别名。
+lessons:
+  - 01-track-file.yaml
+  - 02-staging.yaml
+  - 03-gitignore.yaml
+  - 04-diff.yaml
+  - 05-log-tag.yaml
+  - 06-amend.yaml
+  - 07-restore.yaml
+  - 08-unstage.yaml
+  - 09-revert.yaml
+  - 10-tag.yaml
+  - 11-alias.yaml

@@ -1,0 +1,70 @@
+id: tools.reflog
+title: 用 reflog 找回丢失的提交
+source:
+  chapter: "7.7"
+  url: https://git-scm.com/book/zh/v2/Git-工具-重置揭密
+prerequisites:
+  - branch.rebase
+intro: |-
+  Git 几乎从不真正删除数据。每次 HEAD 移动（提交、切换、重置）都会被记录到
+  「引用日志」reflog 里。即使你用 reset 把分支指针往后挪、看似丢掉了提交，
+  那些提交对象其实还在，只是暂时「没有分支指向」它们。
+
+  用 git reflog 可以看到 HEAD 的来龙去脉，再用 git reset --hard <那个提交> 把分支指回去。
+task: |-
+  你曾提交过 v1、v2、v3 三次。但刚才误用了 git reset --hard HEAD~2，
+  让 main 退回到了 v1，v2、v3 好像不见了。请借助 reflog 找回 v3 那次提交，
+  让 main 重新指向它。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: a.txt
+      content: "v1\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "v1"]
+    - action: write
+      path: a.txt
+      content: "v2\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "v2"]
+    - action: write
+      path: a.txt
+      content: "v3\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "v3"]
+    - action: git
+      args: ["reset", "--hard", "HEAD~2"]
+objectives:
+  - 找回 v3 提交，main 重新指向它
+  - a.txt 的内容恢复为 v3
+capabilities:
+  commands:
+    - status
+    - reflog
+    - reset
+    - log
+    - show
+    - help
+checks:
+  - type: commit_message_exists
+    contains: v3
+  - type: file_content
+    path: a.txt
+    contains: v3
+hints:
+  - '先 git reflog 查看 HEAD 的移动记录，找到写着「commit: v3」的那一行'
+  - 'v3 通常是重置前 HEAD 所在的位置，对应 HEAD@{1}'
+  - '找回它：git reset --hard HEAD@{1}'
+explanation: |-
+  reflog 是 Git 的「安全网」。只要提交对象没被垃圾回收（默认 30 天内），
+  你总能沿着 reflog 把它找回来。reset --hard 只是移动指针，内容安然无恙。
+solution:
+  - action: git
+    args: ["reset", "--hard", "HEAD@{1}"]

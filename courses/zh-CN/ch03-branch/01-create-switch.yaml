@@ -1,0 +1,56 @@
+id: branch.create-switch
+title: 创建并切换到新分支
+source:
+  chapter: "3.1"
+  url: https://git-scm.com/book/zh/v2/Git-分支-分支简介
+prerequisites:
+  - basics.alias
+intro: |-
+  分支是 Git 最强大的特性。Git 的分支本质上只是指向某个提交的可移动指针，
+  创建分支几乎是瞬间完成、不复制任何文件。
+
+  - git branch <name> 创建一个新指针，但不切换过去
+  - git switch <name> 切换到已有分支
+  - git switch -c <name> 创建并立即切换（前两步的简写）
+  - git checkout -b <name> 是老写法，效果相同
+task: |-
+  仓库目前只在 main 分支上。请创建一个名为 feature 的新分支，并切换过去，
+  让后续开发都在 feature 上进行。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: README.md
+      content: "# 示例项目\n\nmain 分支上的内容。\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "初始化项目"]
+objectives:
+  - 已创建名为 feature 的分支
+  - 当前所在分支是 feature
+capabilities:
+  commands:
+    - status
+    - branch
+    - switch
+    - checkout
+    - log
+    - help
+checks:
+  - type: branch_exists
+    name: feature
+  - type: current_branch
+    name: feature
+hints:
+  - 先看看现在有哪些分支：git branch
+  - 创建分支用 git branch feature
+  - 切换到它用 git switch feature（也可以一步到位：git switch -c feature）
+explanation: |-
+  现在 HEAD 指向 feature 这个指针。你之后的提交都会沿着 feature 前进，
+  而 main 保持不动。这正是 Git「轻量分支」的妙处：切换与开发互不打扰。
+solution:
+  - action: git
+    args: ["branch", "feature"]
+  - action: git
+    args: ["switch", "feature"]

@@ -1,0 +1,66 @@
+id: basics.gitignore
+title: 让 Git 视而不见：.gitignore
+source:
+  chapter: "2.2"
+prerequisites:
+  - basics.staging
+intro: |-
+  日志、构建产物、编辑器缓存……这些文件不该进版本库，
+  但它们会一直霸占 git status 的输出，淹没真正重要的信息。
+
+  .gitignore 文件用通配模式告诉 Git 哪些文件不必跟踪：
+  - `*.log` 忽略所有 .log 文件
+  - `build/` 忽略整个 build 目录
+  - `!keep.log` 感叹号表示例外，不忽略这个文件
+task: |-
+  仓库里出现了 debug.log 和 build/output.log 两个干扰文件。
+  1. 用 /write .gitignore 命令创建 .gitignore 文件，内容为一行：*.log
+     （/write 是课程内置的文件编辑命令：/write <文件名> <内容>）
+  2. 把 .gitignore 提交到仓库，提交信息包含「忽略」二字
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: main.py
+      content: "print('hi')\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "初始代码"]
+    - action: write
+      path: debug.log
+      content: "DEBUG line\n"
+    - action: write
+      path: build/output.log
+      content: "build ok\n"
+objectives:
+  - "*.log 文件已被忽略"
+  - .gitignore 已提交进仓库
+capabilities:
+  commands:
+    - status
+    - add
+    - commit
+    - check-ignore
+checks:
+  - type: file_ignored
+    path: debug.log
+  - type: file_ignored
+    path: build/output.log
+  - type: commit_message_exists
+    contains: 忽略
+hints:
+  - "先创建文件：/write .gitignore *.log"
+  - 用 git status 确认 debug.log 已从未跟踪列表消失。
+  - '然后 git add .gitignore && git commit -m "忽略日志文件"（分两条命令输入）'
+explanation: |-
+  git check-ignore -v debug.log 可以告诉你某个文件被哪条规则忽略。
+  注意：.gitignore 只对未跟踪文件生效；已跟踪的文件要先 git rm --cached。
+solution:
+  - action: write
+    path: .gitignore
+    content: "*.log\n"
+  - action: git
+    args: ["add", ".gitignore"]
+  - action: git
+    args: ["commit", "-m", "忽略日志文件"]

@@ -1,0 +1,75 @@
+id: branch.pull
+title: 从远程拉取协作者的修改
+source:
+  chapter: "3.5"
+  url: https://git-scm.com/book/zh/v2/Git-分支-远程分支
+prerequisites:
+  - branch.push
+intro: |-
+  git pull = git fetch（把远程更新下载到本地）+ git merge（并入当前分支）。
+  当协作者已经把修改推送到远程时，你用 pull 把那些提交同步到本地。
+
+  本关里协作者 alice 已经向 origin 推送了一次提交，你本地的 main 落后了。
+task: |-
+  协作者 alice 已向远程 origin/main 推送了新的 hello.txt 内容。
+  请把远程的最新内容拉取并合并到本地 main 分支。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: hello.txt
+      content: "hello\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: bare_remote
+      name: origin
+    - action: git
+      args: ["push", "-u", "origin", "main"]
+    - action: clone_as
+      name: alice
+    - action: write_in
+      repo: alice
+      path: hello.txt
+      content: "hello from alice\n"
+    - action: git_in
+      repo: alice
+      args: ["add", "hello.txt"]
+    - action: git_in
+      repo: alice
+      args: ["commit", "-m", "alice 的提交"]
+    - action: git_in
+      repo: alice
+      args: ["push", "origin", "main"]
+objectives:
+  - 本地 hello.txt 已包含 alice 的修改
+  - 本地 main 与 origin/main 保持同步
+capabilities:
+  commands:
+    - status
+    - remote
+    - branch
+    - fetch
+    - pull
+    - log
+    - help
+checks:
+  - type: file_content
+    path: hello.txt
+    contains: hello from alice
+  - type: upstream_set
+    branch: main
+    upstream: origin/main
+  - type: remote_branch_contains
+    remoteRef: origin/main
+    localRef: main
+hints:
+  - 直接 git pull 即可：它会 fetch + merge（因为已建立 upstream）
+  - 拉取后 git log --oneline 能看到 alice 的提交出现在历史里
+explanation: |-
+  pull 把远程 origin/main 的新提交下载并合并进本地 main，于是 hello.txt 现在
+  包含了 alice 的改动。日常协作中，开工前先 pull、收工后 push 是最基本的工作节奏。
+solution:
+  - action: git
+    args: ["pull"]

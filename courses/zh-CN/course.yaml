@@ -1,0 +1,8 @@
+id: core
+title: Git 核心路线
+description: 以《Pro Git》第二版第 1～3 章与第 7 章高频工具为主线的交互式课程。在隔离的真实 Git 仓库中动手完成任务，程序根据仓库状态判定通关。
+chapters:
+  - ch01-start
+  - ch02-basics
+  - ch03-branch
+  - ch07-tools

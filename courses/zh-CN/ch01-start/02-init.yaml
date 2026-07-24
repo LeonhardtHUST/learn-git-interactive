@@ -1,0 +1,41 @@
+id: start.init
+title: 从零开始：初始化仓库
+source:
+  chapter: "2.1"
+  url: https://git-scm.com/book/zh/v2/Git-基础-获取-Git-仓库
+prerequisites:
+  - start.config
+intro: |-
+  Git 仓库的全部秘密都藏在一个叫 .git 的隐藏目录里：对象数据库、引用、配置。
+  把任何一个普通目录变成 Git 仓库，只需要一条命令。
+
+  理解三个区域是掌握 Git 的关键心智模型：
+  - 工作区：你直接编辑的文件
+  - 暂存区（索引）：下一次提交的"草稿"
+  - 仓库：已永久保存的快照历史
+task: |-
+  当前目录还只是一个普通文件夹（里面已经有一个 hello.txt）。
+  请把它初始化为 Git 仓库，然后用 git status 观察 hello.txt 处于什么状态。
+setup:
+  fixture:
+    - action: write
+      path: hello.txt
+      content: "你好，Git！\n"
+objectives:
+  - 当前目录已成为 Git 仓库
+capabilities:
+  commands:
+    - init
+    - status
+    - help
+checks:
+  - type: repo_initialized
+hints:
+  - 初始化仓库的命令只有两个单词。
+  - git init 会在当前目录创建 .git 子目录。
+explanation: |-
+  git init 之后，hello.txt 显示为「未跟踪（untracked）」——
+  Git 看得见它，但还不会为它记录版本。下一关我们让 Git 开始跟踪它。
+solution:
+  - action: git
+    args: ["init"]

@@ -1,0 +1,56 @@
+id: basics.staging
+title: 暂存一次精确的修改
+source:
+  chapter: "2.2"
+prerequisites:
+  - basics.track-file
+intro: |-
+  暂存区最大的价值：把"改了什么"和"提交什么"解耦。
+  哪怕你同时改了十个文件，也可以只挑其中一个放进下一次提交。
+
+  这让每个提交都能保持主题单一——评审历史时你会感激自己。
+task: |-
+  README.md 和 notes.txt 都有未暂存的修改。
+  只把 README.md 的修改放入暂存区，让 notes.txt 继续留在工作区。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: README.md
+      content: "# 项目说明\n"
+    - action: write
+      path: notes.txt
+      content: "临时笔记\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "初始状态"]
+    - action: append
+      path: README.md
+      content: "\n新增了安装说明。\n"
+    - action: append
+      path: notes.txt
+      content: "还没想好要不要提交的想法\n"
+objectives:
+  - README.md 已进入暂存区
+  - notes.txt 仍留在工作区
+capabilities:
+  commands:
+    - status
+    - diff
+    - add
+checks:
+  - type: index_contains
+    path: README.md
+  - type: worktree_modified
+    path: notes.txt
+hints:
+  - 先比较工作区和暂存区：git diff 显示的就是"还没暂存"的改动。
+  - 可以只指定一个文件给 git add。
+  - git add README.md（不要 git add . ——那会把两个文件都暂存）
+explanation: |-
+  现在 git diff --staged 显示 README.md 的改动（已暂存），
+  git diff 显示 notes.txt 的改动（未暂存）。两个世界互不干扰。
+solution:
+  - action: git
+    args: ["add", "README.md"]

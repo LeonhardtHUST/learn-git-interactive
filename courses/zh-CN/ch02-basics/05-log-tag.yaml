@@ -1,0 +1,58 @@
+id: basics.log-detective
+title: 历史侦探：用 log 定位提交
+source:
+  chapter: "2.3"
+prerequisites:
+  - basics.diff
+intro: |-
+  git log 是穿越仓库历史的时间机器。常用姿势：
+  - git log --oneline          每个提交一行，一目了然
+  - git log -p                 附带每次提交的完整 diff
+  - git log --grep=关键字      按提交信息搜索
+
+  提交可以用相对引用定位：HEAD 是当前提交，HEAD~1 是它的父提交，以此类推。
+task: |-
+  这个仓库有三个提交，其中一个修复了登录问题。
+  用 git log 找到那个修复提交，并给它打一个轻量标签 bug-fix。
+  （提示：git tag <标签名> <提交> 可以给任意历史提交打标签。）
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: app.py
+      content: "VERSION = 1\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "初始版本"]
+    - action: append
+      path: app.py
+      content: "LOGIN_FIXED = True\n"
+    - action: git
+      args: ["commit", "-am", "修复登录超时问题"]
+    - action: append
+      path: app.py
+      content: "FEATURE_X = True\n"
+    - action: git
+      args: ["commit", "-am", "添加新功能 X"]
+objectives:
+  - 标签 bug-fix 指向"修复登录超时问题"那个提交
+capabilities:
+  commands:
+    - log
+    - show
+    - tag
+checks:
+  - type: refs_equal
+    a: refs/tags/bug-fix
+    b: HEAD~1
+hints:
+  - git log --oneline 先看看三个提交的顺序。
+  - 修复提交是从最新数的第二个，可以写作 HEAD~1，也可以直接用它的哈希。
+  - git tag bug-fix HEAD~1
+explanation: |-
+  git show bug-fix 现在会显示那个修复提交的完整内容。
+  标签本质上是一个不会移动的指针——下一章的分支则是会移动的指针。
+solution:
+  - action: git
+    args: ["tag", "bug-fix", "HEAD~1"]
