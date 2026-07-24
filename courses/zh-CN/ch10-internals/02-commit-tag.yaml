@@ -1,0 +1,61 @@
+id: internals.commit-tag
+title: commit 与 tag 对象
+source:
+  chapter: "10.2"
+  url: https://git-scm.com/book/zh/v2/Git-内部原理-Git-引用
+prerequisites:
+  - internals.blob-tree
+intro: |-
+  一个 commit 对象记录：指向的 tree、父提交、作者/提交者以及提交说明。
+  tag 分为轻量标签（只是指向提交的引用）和附注标签（独立的 tag 对象，本身带有说明与签名者）。
+
+  - git cat-file -t HEAD 可以看到 HEAD 是个 commit 对象
+  - git tag -a v1 -m "..." 创建附注标签，它本身是一个 tag 对象
+  - git cat-file -t v1 可以验证它是 tag 类型
+task: |-
+  仓库已有一次提交。请创建一个附注标签 v1（git tag -a v1 -m "release"），
+  并用 git cat-file -t 确认 HEAD 是 commit、v1 是 tag。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: a.txt
+      content: "v1\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "first"]
+objectives:
+  - 理解 commit 对象指向 tree 与父提交
+  - 能创建附注标签并理解其与轻量标签的区别
+capabilities:
+  commands:
+    - status
+    - cat-file
+    - tag
+    - commit
+    - log
+    - rev-parse
+    - show
+    - help
+    - add
+checks:
+  - type: object_type
+    object: "HEAD"
+    objectType: commit
+  - type: tag_exists
+    name: v1
+    annotated: true
+  - type: object_type
+    object: "v1"
+    objectType: tag
+hints:
+  - '查看 HEAD 的对象类型：git cat-file -t HEAD'
+  - '创建附注标签：git tag -a v1 -m "release"'
+  - '确认 v1 是 tag 对象：git cat-file -t v1'
+explanation: |-
+  HEAD 指向一个 commit 对象；git tag -a 创建的 v1 是一个独立的 tag 对象（annotated），
+  它再指向对应的 commit。轻量标签则只是 refs/tags/v1 直接指向 commit，没有独立的 tag 对象。
+solution:
+  - action: git
+    args: ["tag", "-a", "v1", "-m", "release"]

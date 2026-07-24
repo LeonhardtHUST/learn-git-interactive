@@ -1,4 +1,6 @@
 id: ch10-internals
 title: 第 10 章 Git 内部原理
 description: blob、tree、commit、tag、refs、packfile、refspec、传输与数据恢复。
-lessons: []
+lessons:
+  - 01-blob-tree.yaml
+  - 02-commit-tag.yaml

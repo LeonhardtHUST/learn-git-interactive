@@ -1,0 +1,76 @@
+id: internals.blob-tree
+title: blob 与 tree 对象
+source:
+  chapter: "10.2"
+  url: https://git-scm.com/book/zh/v2/Git-内部原理-Git-对象
+prerequisites:
+  - basics.first-commit
+intro: |-
+  Git 的核心是个内容寻址的对象数据库。任何文件、目录、提交最终都存为四种对象之一：
+  blob（文件内容）、tree（目录快照）、commit（提交）与 tag（标签）。
+
+  - blob 只保存文件内容，不含文件名；相同内容复用同一个 blob
+  - tree 记录某目录下「文件名 → blob / tree 指针」的映射
+  - git cat-file -t <对象> 查看对象类型，git cat-file -p <对象> 查看内容
+  - git hash-object -w <文件> 手动把一个文件内容写入对象库
+
+task: |-
+  仓库里已有 a.txt、b.txt（已提交）以及 c.txt（还未暂存）。
+  1) 用 git hash-object -w a.txt 亲手把 a.txt 的内容写进对象库；
+  2) 用 git add c.txt 把 c.txt 加入暂存区，体会「文件 → blob」的过程。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: a.txt
+      content: "hello\n"
+    - action: write
+      path: b.txt
+      content: "world\n"
+    - action: write
+      path: c.txt
+      content: "charlie\n"
+    - action: git
+      args: ["add", "a.txt", "b.txt"]
+    - action: git
+      args: ["commit", "-m", "add a,b"]
+objectives:
+  - 理解 blob 只保存内容、不含文件名
+  - 能用 git cat-file -t 分辨 blob / tree
+  - 能用 git hash-object -w 写入对象、用 git add 生成 blob
+capabilities:
+  commands:
+    - status
+    - cat-file
+    - hash-object
+    - add
+    - commit
+    - log
+    - rev-parse
+    - ls-files
+    - show
+    - help
+checks:
+  - type: object_type
+    object: "HEAD^{tree}"
+    objectType: tree
+  - type: object_type
+    object: "HEAD:a.txt"
+    objectType: blob
+  - type: object_type
+    object: ":c.txt"
+    objectType: blob
+hints:
+  - '先看看 HEAD 指向的树：git cat-file -t HEAD^{tree}'
+  - '查看 a.txt 对应的 blob：git cat-file -t HEAD:a.txt'
+  - '把 a.txt 写入对象库：git hash-object -w a.txt'
+  - '把未暂存的 c.txt 加入暂存区：git add c.txt，再用 git cat-file -t :c.txt 验证它已变成 blob'
+explanation: |-
+  HEAD^{tree} 是根目录的 tree 对象；HEAD:a.txt 是提交中 a.txt 对应的 blob；
+  :c.txt（带冒号前缀）表示「暂存区里的 c.txt」，只有 git add 之后它才成为 blob 对象。
+  文件名只存在于 tree 中，blob 本身对文件名一无所知——这正是 Git 去重的基础。
+solution:
+  - action: git
+    args: ["hash-object", "-w", "a.txt"]
+  - action: git
+    args: ["add", "c.txt"]
