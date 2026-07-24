@@ -1,0 +1,86 @@
+id: distributed.integrate
+title: 集成管理者合并贡献
+source:
+  chapter: "5.1"
+  url: https://git-scm.com/book/zh/v2/Git-分支-分支开发工作流
+prerequisites:
+  - distributed.feature-branch
+intro: |-
+  在「集成管理者」工作流中，维护者负责把贡献者的特性分支合并进主分支并推送到权威仓库。
+  贡献者把自己的分支推到共享远程，维护者 fetch 后合并再 push。
+
+  - 维护者 git fetch origin 取回贡献者的分支
+  - git merge origin/feature 合并进 main
+  - git push origin main 把结果推回权威仓库
+task: |-
+  作为集成管理者，请把 alice 推送的 feature 分支合并进你的 main 并推送到 origin：
+  1) git fetch origin
+  2) git merge origin/feature
+  3) git push origin main
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: README.md
+      content: "# demo\n\ninitial\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: bare_remote
+      name: origin
+    - action: git
+      args: ["push", "-u", "origin", "main"]
+    - action: clone_as
+      name: alice
+    - action: git_in
+      repo: alice
+      args: ["checkout", "-b", "feature"]
+    - action: write_in
+      repo: alice
+      path: feature.txt
+      content: "from alice\n"
+    - action: git_in
+      repo: alice
+      args: ["add", "."]
+    - action: git_in
+      repo: alice
+      args: ["commit", "-m", "alice feature"]
+    - action: git_in
+      repo: alice
+      args: ["push", "-u", "origin", "feature"]
+objectives:
+  - 能作为维护者取回并合并贡献
+  - 能把集成结果推回权威仓库
+capabilities:
+  commands:
+    - status
+    - log
+    - fetch
+    - merge
+    - push
+    - branch
+    - remote
+    - diff
+    - show
+    - help
+checks:
+  - type: remote_branch_contains
+    remoteRef: origin/main
+    localRef: main
+  - type: no_conflict
+hints:
+  - '取回所有远程更新：git fetch origin'
+  - '合并 alice 的 feature：git merge origin/feature'
+  - '推回权威仓库：git push origin main'
+explanation: |-
+  git fetch 拿到 origin/feature；git merge origin/feature 因 main 是它祖先而 fast-forward，
+  不会产生冲突（no_conflict）；最后 git push origin main 把集成后的 main 推回权威仓库，
+  此时 origin/main 已经包含 main 的全部提交（remote_branch_contains 成立）。
+solution:
+  - action: git
+    args: ["fetch", "origin"]
+  - action: git
+    args: ["merge", "origin/feature"]
+  - action: git
+    args: ["push", "origin", "main"]

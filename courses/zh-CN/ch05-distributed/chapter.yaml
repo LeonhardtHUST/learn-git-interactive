@@ -1,4 +1,6 @@
 id: ch05-distributed
 title: 第 5 章 分布式工作流
 description: 集中式、集成管理者、独裁与副官等工作流；贡献与维护的分支约定。
-lessons: []
+lessons:
+  - 01-feature-branch.yaml
+  - 02-integrate.yaml

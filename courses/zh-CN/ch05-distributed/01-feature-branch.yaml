@@ -1,0 +1,78 @@
+id: distributed.feature-branch
+title: 特性分支工作流
+source:
+  chapter: "5.1"
+  url: https://git-scm.com/book/zh/v2/Git-分支-分支开发工作流
+prerequisites:
+  - protocol.remote-branches
+intro: |-
+  特性分支（feature branch）工作流是协作开发的基础：每个新功能都在独立分支上开发，
+  完成后合并回 main，互不干扰。
+
+  - git switch -c feature 创建并切换到特性分支
+  - 在特性分支上正常提交
+  - git push -u origin feature 推送并建立上游跟踪
+task: |-
+  在本地创建 feature 分支，把已存在于工作区但未提交的 feature.txt 提交上去，
+  然后推送到 origin 并建立上游跟踪：
+  1) git switch -c feature
+  2) git add feature.txt
+  3) git commit -m "add feature"
+  4) git push -u origin feature
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: README.md
+      content: "# demo\n\ninitial\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: write
+      path: feature.txt
+      content: "new feature work\n"
+    - action: bare_remote
+      name: origin
+objectives:
+  - 能在特性分支上开发并提交
+  - 能推送特性分支并建立上游跟踪
+capabilities:
+  commands:
+    - status
+    - branch
+    - switch
+    - add
+    - commit
+    - push
+    - log
+    - remote
+    - diff
+    - show
+    - help
+checks:
+  - type: branch_exists
+    name: feature
+  - type: upstream_set
+    branch: feature
+    upstream: origin/feature
+  - type: remote_branch_contains
+    remoteRef: origin/feature
+    localRef: feature
+hints:
+  - '创建并切换分支：git switch -c feature'
+  - '提交 feature.txt：git add feature.txt && git commit -m "add feature"'
+  - '推送到 origin 并建立跟踪：git push -u origin feature'
+explanation: |-
+  feature 分支让你在不污染 main 的前提下开发。git push -u origin feature 做了两件事：
+  把分支推到远程，并用 -u 把本地 feature 的上游设为 origin/feature，之后直接 git push / git pull 即可。
+  远程跟踪关系（upstream_set）正是「本地分支 ↔ 远程分支」的绑定。
+solution:
+  - action: git
+    args: ["switch", "-c", "feature"]
+  - action: git
+    args: ["add", "feature.txt"]
+  - action: git
+    args: ["commit", "-m", "add feature"]
+  - action: git
+    args: ["push", "-u", "origin", "feature"]
