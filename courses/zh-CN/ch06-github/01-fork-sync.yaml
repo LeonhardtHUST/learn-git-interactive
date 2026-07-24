@@ -1,0 +1,89 @@
+id: github.fork-sync
+title: 同步 fork 与上游仓库
+source:
+  chapter: "6.1"
+  url: https://docs.github.com/zh/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork
+prerequisites:
+  - distributed.integrate
+intro: |-
+  在 GitHub 上参与开源时，你通常先 fork 一份仓库到自己名下，再 clone 你的 fork 开发。
+  原始仓库称为「上游」（upstream），你的 fork 称为 origin。上游会不断有新提交，
+  你需要定期把上游的更新同步进自己的 fork。
+
+  本关用两个本地 bare 仓库模拟这一关系：
+  - upstream：原始权威仓库（已经领先了一个提交）
+  - origin：你的 fork（还停在旧位置）
+
+  同步 fork 的三步：git fetch upstream → git merge upstream/main → git push origin main。
+task: |-
+  你的 fork（origin）落后于上游（upstream）一个提交。请把上游的更新同步进来并推回你的 fork：
+  1) git fetch upstream
+  2) git merge upstream/main
+  3) git push origin main
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: README.md
+      content: "# demo\n\ninitial\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: bare_remote
+      name: upstream
+    - action: git
+      args: ["push", "upstream", "main"]
+    - action: write
+      path: CHANGES.md
+      content: "upstream 的新特性\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "upstream: 新增特性"]
+    - action: git
+      args: ["push", "upstream", "main"]
+    - action: git
+      args: ["reset", "--hard", "HEAD~1"]
+    - action: bare_remote
+      name: origin
+    - action: git
+      args: ["push", "-u", "origin", "main"]
+objectives:
+  - 理解 upstream（上游）与 origin（fork）的关系
+  - 能把上游更新同步进自己的 fork
+capabilities:
+  commands:
+    - status
+    - log
+    - fetch
+    - merge
+    - push
+    - branch
+    - remote
+    - diff
+    - show
+    - help
+checks:
+  - type: remote_exists
+    name: upstream
+  - type: ref_is_ancestor_of_head
+    ref: upstream/main
+  - type: remote_branch_contains
+    remoteRef: origin/main
+    localRef: main
+hints:
+  - '取回上游更新：git fetch upstream'
+  - '把上游合并进本地 main：git merge upstream/main'
+  - '推回你的 fork：git push origin main'
+explanation: |-
+  fork 工作流的关键是「两个远程」：origin 是你自己的 fork，upstream 是原始仓库。
+  git fetch upstream 取回上游最新提交，git merge upstream/main 因你的 main 是它祖先而 fast-forward，
+  最后 git push origin main 把同步结果推回你的 fork。这样你的 fork 就与上游保持一致（ref_is_ancestor_of_head、remote_branch_contains 均成立）。
+solution:
+  - action: git
+    args: ["fetch", "upstream"]
+  - action: git
+    args: ["merge", "upstream/main"]
+  - action: git
+    args: ["push", "origin", "main"]

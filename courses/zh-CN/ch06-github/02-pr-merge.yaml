@@ -1,0 +1,89 @@
+id: github.pr-merge
+title: 合并一个 Pull Request
+source:
+  chapter: "6.2"
+  url: https://docs.github.com/zh/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/about-pull-request-merges
+prerequisites:
+  - github.fork-sync
+intro: |-
+  Pull Request（PR）是 GitHub 上贡献代码的核心方式：贡献者把自己的分支推到共享仓库，
+  维护者在网页上 review 后点击「Merge pull request」把它合并进 main。
+
+  GitHub 默认的合并方式会创建一个「合并提交」（merge commit），即使可以 fast-forward——
+  这等价于 git merge --no-ff。本关模拟维护者在命令行完成同样的操作：
+  贡献者 alice 已经把 feature 分支推到了 origin，请你把这个 PR 合并进 main。
+task: |-
+  贡献者 alice 提交了一个 PR（origin/feature）。作为维护者，请用合并提交的方式把它并入 main 并推回：
+  1) git fetch origin
+  2) git merge --no-ff origin/feature -m "Merge pull request from alice"
+  3) git push origin main
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: README.md
+      content: "# demo\n\ninitial\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: bare_remote
+      name: origin
+    - action: git
+      args: ["push", "-u", "origin", "main"]
+    - action: clone_as
+      name: alice
+    - action: git_in
+      repo: alice
+      args: ["checkout", "-b", "feature"]
+    - action: write_in
+      repo: alice
+      path: feature.txt
+      content: "alice 的贡献\n"
+    - action: git_in
+      repo: alice
+      args: ["add", "."]
+    - action: git_in
+      repo: alice
+      args: ["commit", "-m", "feat: alice 的新功能"]
+    - action: git_in
+      repo: alice
+      args: ["push", "-u", "origin", "feature"]
+objectives:
+  - 理解 PR 与 merge commit（--no-ff）的关系
+  - 能作为维护者取回并合并贡献者的 PR 分支
+capabilities:
+  commands:
+    - status
+    - log
+    - fetch
+    - merge
+    - push
+    - branch
+    - remote
+    - diff
+    - show
+    - help
+checks:
+  - type: ref_is_ancestor_of_head
+    ref: origin/feature
+  - type: remote_branch_contains
+    remoteRef: origin/main
+    localRef: main
+  - type: no_conflict
+hints:
+  - '取回所有远程分支：git fetch origin'
+  - '用合并提交方式并入 PR：git merge --no-ff origin/feature -m "Merge pull request from alice"'
+  - '把合并结果推回 origin：git push origin main'
+explanation: |-
+  git fetch origin 取回 origin/feature（即 alice 的 PR 分支）。git merge --no-ff 强制生成一个合并提交，
+  这正是 GitHub「Merge pull request」按钮的默认行为——即使能 fast-forward 也保留一次显式合并，方便日后追溯 PR。
+  合并后 alice 的提交成为 HEAD 的祖先（ref_is_ancestor_of_head），git push origin main 把集成结果推回权威仓库
+  （remote_branch_contains 成立），整个过程无冲突（no_conflict）。
+solution:
+  - action: git
+    args: ["fetch", "origin"]
+  - action: git
+    args: ["merge", "--no-ff", "origin/feature", "-m", "Merge pull request from alice"]
+  - action: git
+    args: ["push", "origin", "main"]
