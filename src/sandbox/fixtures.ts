@@ -37,6 +37,17 @@ export async function buildFixture(
   await mkdir(session.repos, { recursive: true });
   await mkdir(session.remotes, { recursive: true });
 
+  return await applySteps(session, steps);
+}
+
+/**
+ * 在已有沙箱状态上执行步骤（不清空）。
+ * 用于契约测试回放关卡 solution。
+ */
+export async function applySteps(
+  session: SessionPaths,
+  steps: FixtureStep[],
+): Promise<FixtureResult> {
   const learner = session.learnerRepo;
 
   const run = async (cwd: string, args: string[]) => {
@@ -73,6 +84,11 @@ export async function buildFixture(
       }
       case "git": {
         await run(learner, step.args);
+        break;
+      }
+      case "git_try": {
+        // 允许失败（如刻意触发冲突的 merge/rebase/pull）
+        await execGit(step.args, { cwd: learner, session });
         break;
       }
       case "bare_remote": {

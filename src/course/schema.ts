@@ -90,6 +90,8 @@ export const FixtureStepSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("append"), path: z.string(), content: z.string() }),
   z.object({ action: z.literal("remove"), path: z.string() }),
   z.object({ action: z.literal("git"), args: z.array(z.string()) }),
+  /** 允许失败的 git 步骤（如触发冲突的 merge） */
+  z.object({ action: z.literal("git_try"), args: z.array(z.string()) }),
   /** 创建本地 bare remote 并关联为 origin */
   z.object({ action: z.literal("bare_remote"), name: z.string().default("origin") }),
   /** 在另一个 clone（如 alice）中执行 git 命令，模拟协作者 */
@@ -130,6 +132,8 @@ export const LessonSchema = z.object({
   hints: z.array(z.string()).min(1),
   /** 通关后的解释说明 */
   explanation: z.string().optional(),
+  /** 参考解法（仅供契约测试验证关卡可通关，不展示给学习者） */
+  solution: z.array(FixtureStepSchema).optional(),
 });
 
 export type Lesson = z.infer<typeof LessonSchema>;
