@@ -5,4 +5,10 @@ chapters:
   - ch01-start
   - ch02-basics
   - ch03-branch
+  - ch04-protocol
+  - ch05-distributed
+  - ch06-github
   - ch07-tools
+  - ch08-config
+  - ch09-migration
+  - ch10-internals
