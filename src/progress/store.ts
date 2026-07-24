@@ -64,7 +64,7 @@ export function markLessonComplete(progress: Progress, lessonId: string): Progre
 
 /** 某关卡是否已完成 */
 export function isLessonComplete(progress: Progress, lessonId: string): boolean {
-  return Object.prototype.hasOwnProperty.call(progress.completedLessons, lessonId);
+  return Object.hasOwn(progress.completedLessons, lessonId);
 }
 
 /** 已完成关卡数量 */

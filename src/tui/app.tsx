@@ -7,9 +7,12 @@
 import { TextAttributes } from "@opentui/core";
 import { render } from "@opentui/solid";
 import { For, Show } from "solid-js";
-import { handleCommand, handleGitCommand } from "./commands";
+import { handleInput } from "./commands";
+import { initEngine } from "./engine";
 import {
   addMessage,
+  autograde,
+  commitGraph,
   gitStatus,
   inputValue,
   progress,
@@ -40,7 +43,8 @@ function TopBar() {
         {progress().chapter} | {progress().lesson}
       </text>
       <text fg="#9ece6a">
-        进度 {progress().completed}/{progress().total}
+        进度 {progress().completed}/{progress().total}{" "}
+        {autograde() ? "· 自动判题:开" : "· 自动判题:关"}
       </text>
     </box>
   );
@@ -108,16 +112,10 @@ function BottomInput() {
   const handleSubmit = (value: unknown) => {
     const text = typeof value === "string" ? value : inputValue();
     if (!text.trim()) return;
-
-    if (text.startsWith("/")) {
-      const handled = handleCommand(text);
-      if (!handled) {
-        addMessage("system", `未知命令：${text}。输入 /help 查看可用命令。`);
-      }
-    } else {
-      handleGitCommand(text);
-    }
     setInputValue("");
+    handleInput(text).catch((err: unknown) => {
+      addMessage("system", `⚠ 处理命令时出错：${err instanceof Error ? err.message : String(err)}`);
+    });
   };
 
   return (
@@ -153,12 +151,12 @@ function CommitGraph() {
       borderColor="#565f89"
       padding={1}
       flexDirection="column"
-      height={6}
+      flexShrink={0}
     >
       <text fg="#7aa2f7" attributes={TextAttributes.BOLD}>
         📈 提交关系图
       </text>
-      <text fg="#9ece6a">● 9413c0c Initial commit (HEAD → main, origin/main)</text>
+      <For each={commitGraph()}>{(line) => <text fg="#9ece6a">{line}</text>}</For>
     </box>
   );
 }
@@ -184,5 +182,11 @@ function App() {
 // ── 入口 ──────────────────────────────────────────────────
 
 export async function startTui() {
+  try {
+    await initEngine();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    addMessage("system", `⚠ 课程初始化失败：${msg}`);
+  }
   await render(() => <App />);
 }

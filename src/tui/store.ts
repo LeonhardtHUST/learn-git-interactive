@@ -17,7 +17,7 @@ export interface SessionMessage {
   timestamp: number;
 }
 
-/** 模拟 Git 状态（Phase 3 占位，Phase 4 替换） */
+/** 真实 Git 仓库状态快照（由引擎查询实验仓库后写入） */
 export interface GitStatus {
   branch: string;
   head: string;
@@ -43,20 +43,26 @@ export const [sessionMessages, setSessionMessages] = createSignal<SessionMessage
 ]);
 
 export const [progress, setProgress] = createSignal({
-  course: "Git 基础",
-  chapter: "第 1 章：起步",
-  lesson: "1.1 关于版本控制",
+  course: "Git 交互式课程",
+  chapter: "加载中…",
+  lesson: "",
   completed: 0,
-  total: 18,
+  total: 0,
 });
 
 export const [gitStatus, setGitStatus] = createSignal<GitStatus>({
-  branch: "main",
-  head: "9413c0c",
+  branch: "—",
+  head: "—",
   workingTree: "clean",
   index: "clean",
-  remoteTracking: "origin/main ↑0 ↓0",
+  remoteTracking: "（无上游）",
 });
+
+/** 提交关系图文本行（由引擎 git log --graph 生成） */
+export const [commitGraph, setCommitGraph] = createSignal<string[]>(["（暂无提交）"]);
+
+/** 自动判题开关（默认开） */
+export const [autograde, setAutograde] = createSignal(true);
 
 export const [showGitStatus, setShowGitStatus] = createSignal(true);
 
