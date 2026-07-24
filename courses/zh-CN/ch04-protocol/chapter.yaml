@@ -1,4 +1,6 @@
 id: ch04-protocol
 title: 第 4 章 服务器上的 Git
 description: 传输协议（本地、SSH、HTTPS、Git）、bare 仓库、在服务器上搭建 Git 与常见托管方案。
-lessons: []
+lessons:
+  - 01-local-clone.yaml
+  - 02-remote-branches.yaml

@@ -1,0 +1,84 @@
+id: protocol.remote-branches
+title: 理解远程跟踪分支与 fetch
+source:
+  chapter: "4.2"
+  url: https://git-scm.com/book/zh/v2/Git-分支-远程分支
+prerequisites:
+  - protocol.local-clone
+intro: |-
+  当你 clone 或 fetch 一个远程时，Git 会建立「远程跟踪分支」（如 origin/main），
+  它们是远程仓库状态的只读快照，存放在本地 refs/remotes/。
+
+  - git fetch origin 更新所有远程跟踪分支（不合并）
+  - git merge origin/feature 把某个远程分支合并进当前分支
+  - 远程跟踪分支不能直接提交，要先 fetch 再合并 / 变基
+task: |-
+  alice 推送了一个 feature 分支到 origin。请获取它并在本地合并：
+  1) git fetch origin
+  2) git merge origin/feature
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: README.md
+      content: "# demo\n\ninitial\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: bare_remote
+      name: origin
+    - action: git
+      args: ["push", "-u", "origin", "main"]
+    - action: clone_as
+      name: alice
+    - action: git_in
+      repo: alice
+      args: ["switch", "-c", "feature"]
+    - action: write_in
+      repo: alice
+      path: feature.txt
+      content: "feat\n"
+    - action: git_in
+      repo: alice
+      args: ["add", "."]
+    - action: git_in
+      repo: alice
+      args: ["commit", "-m", "feat"]
+    - action: git_in
+      repo: alice
+      args: ["push", "-u", "origin", "feature"]
+objectives:
+  - 理解远程跟踪分支（origin/main、origin/feature）
+  - 能用 git fetch + git merge 整合远程分支
+capabilities:
+  commands:
+    - status
+    - log
+    - fetch
+    - merge
+    - branch
+    - switch
+    - remote
+    - diff
+    - show
+    - help
+checks:
+  - type: remote_exists
+    name: origin
+  - type: branch_exists
+    name: main
+  - type: ref_is_ancestor_of_head
+    ref: origin/feature
+hints:
+  - '先取回所有远程更新：git fetch origin'
+  - '把 feature 合并进来：git merge origin/feature'
+explanation: |-
+  git fetch 把 origin/feature 更新到本地快照；git merge origin/feature 再把它并入 main。
+  因为 main 是 feature 的祖先，合并会是 fast-forward，main 直接指向 feature 的最新提交。
+  远程跟踪分支（origin/feature）只是「遥控器上的进度条」，真正的整合发生在你 merge 时。
+solution:
+  - action: git
+    args: ["fetch", "origin"]
+  - action: git
+    args: ["merge", "origin/feature"]

@@ -1,0 +1,76 @@
+id: protocol.local-clone
+title: 用本地 clone 取回他人提交
+source:
+  chapter: "4.1"
+  url: https://git-scm.com/book/zh/v2/Git-服务器上的-Git-协议
+prerequisites:
+  - branch.push
+intro: |-
+  Git 支持多种传输协议。最简单可离线演示的是本地协议（local / file://）：
+  两个仓库在同一台机器上，通过文件路径互相 clone / fetch / push。
+
+  - 仓库可以关联一个「远程」（remote），通常叫 origin
+  - git clone <路径> 会复制整个仓库历史
+  - git pull 等于 git fetch + git merge，把远程的新提交取回并合并
+task: |-
+  你的同事 alice 已经把她的提交推到了 origin/main。请把她的提交取回并合并进你的 main：
+  运行 git pull。
+setup:
+  fixture:
+    - action: init
+    - action: write
+      path: README.md
+      content: "# demo\n\ninitial\n"
+    - action: git
+      args: ["add", "."]
+    - action: git
+      args: ["commit", "-m", "init"]
+    - action: bare_remote
+      name: origin
+    - action: git
+      args: ["push", "-u", "origin", "main"]
+    - action: clone_as
+      name: alice
+    - action: write_in
+      repo: alice
+      path: c.txt
+      content: "from alice\n"
+    - action: git_in
+      repo: alice
+      args: ["add", "."]
+    - action: git_in
+      repo: alice
+      args: ["commit", "-m", "alice work"]
+    - action: git_in
+      repo: alice
+      args: ["push", "origin", "main"]
+objectives:
+  - 理解远程（remote）与远程分支（origin/main）
+  - 能用 git pull 取回并合并他人提交
+capabilities:
+  commands:
+    - status
+    - log
+    - pull
+    - fetch
+    - merge
+    - branch
+    - remote
+    - diff
+    - show
+    - help
+checks:
+  - type: remote_exists
+    name: origin
+  - type: ref_is_ancestor_of_head
+    ref: origin/main
+hints:
+  - '远程已经存在，直接取回并合并：git pull'
+  - '如果只想先看一眼：git fetch origin，再用 git log origin/main 对比'
+explanation: |-
+  alice 把提交推到了 origin/main，你的 main 还停在旧位置。git pull 会先 fetch origin/main，
+  再把它 fast-forward 合并进你的 main（因为你的历史是它祖先，无需真正合并）。
+  这正是日常协作里「拉取队友进展」最常见的一步。
+solution:
+  - action: git
+    args: ["pull"]
