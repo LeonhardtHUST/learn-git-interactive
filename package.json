@@ -29,5 +29,12 @@
     "solid-js": "^1.9.14",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "bun",
+      "version": "1.3.14",
+      "onFail": "download"
+    }
   }
 }

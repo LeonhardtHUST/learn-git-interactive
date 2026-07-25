@@ -7,6 +7,7 @@
 import { TextAttributes } from "@opentui/core";
 import { render } from "@opentui/solid";
 import { For, Show } from "solid-js";
+
 import { handleInput } from "./commands";
 import { initEngine } from "./engine";
 import {
@@ -37,14 +38,16 @@ function TopBar() {
       justifyContent="space-between"
     >
       <text fg="#7aa2f7" attributes={TextAttributes.BOLD}>
-        🎓 {progress().course}
+        {"🎓 " + progress().course}
       </text>
-      <text fg="#565f89">
-        {progress().chapter} | {progress().lesson}
-      </text>
+      <text fg="#565f89">{progress().chapter + " | " + progress().lesson}</text>
       <text fg="#9ece6a">
-        进度 {progress().completed}/{progress().total}{" "}
-        {autograde() ? "· 自动判题:开" : "· 自动判题:关"}
+        {"进度 " +
+          progress().completed +
+          "/" +
+          progress().total +
+          " " +
+          (autograde() ? "· 自动判题:开" : "· 自动判题:关")}
       </text>
     </box>
   );
@@ -62,21 +65,21 @@ const MESSAGE_STYLES: Record<SessionMessage["type"], { fg: string; prefix: strin
 
 function MessageBubble(props: { msg: SessionMessage }) {
   const style = () => MESSAGE_STYLES[props.msg.type];
+  const lines = () => props.msg.content.split("\n");
   return (
     <box paddingLeft={1} flexDirection="column">
-      <text fg={style().fg}>
-        {style().prefix}
-        {props.msg.content}
-      </text>
+      <For each={lines()}>
+        {(line, idx) => <text fg={style().fg}>{(idx() === 0 ? style().prefix : "") + line}</text>}
+      </For>
     </box>
   );
 }
 
 function SessionFlow() {
   return (
-    <scroll-box flexGrow={1} flexDirection="column" stickyScroll stickyStart="bottom">
+    <scrollbox flexGrow={1} flexDirection="column" stickyScroll stickyStart="bottom">
       <For each={sessionMessages()}>{(msg) => <MessageBubble msg={msg} />}</For>
-    </scroll-box>
+    </scrollbox>
   );
 }
 
@@ -95,13 +98,11 @@ function GitStatusCard() {
       <text fg="#7aa2f7" attributes={TextAttributes.BOLD}>
         📊 Git 状态
       </text>
+      <text fg="#c0caf5">{"分支：" + gitStatus().branch + " | HEAD：" + gitStatus().head}</text>
       <text fg="#c0caf5">
-        分支：{gitStatus().branch} | HEAD：{gitStatus().head}
+        {"工作区：" + gitStatus().workingTree + " | 暂存区：" + gitStatus().index}
       </text>
-      <text fg="#c0caf5">
-        工作区：{gitStatus().workingTree} | 暂存区：{gitStatus().index}
-      </text>
-      <text fg="#c0caf5">远程：{gitStatus().remoteTracking}</text>
+      <text fg="#c0caf5">{"远程：" + gitStatus().remoteTracking}</text>
     </box>
   );
 }
@@ -114,7 +115,10 @@ function BottomInput() {
     if (!text.trim()) return;
     setInputValue("");
     handleInput(text).catch((err: unknown) => {
-      addMessage("system", `⚠ 处理命令时出错：${err instanceof Error ? err.message : String(err)}`);
+      addMessage(
+        "system",
+        "⚠ 处理命令时出错：" + (err instanceof Error ? err.message : String(err)),
+      );
     });
   };
 
@@ -141,7 +145,7 @@ function BottomInput() {
   );
 }
 
-// ── 子组件：提交图（占位）─────────────────────────────────
+// ── 子组件：提交图 ────────────────────────────────────────
 
 function CommitGraph() {
   return (
@@ -168,12 +172,8 @@ function App() {
     <box width="100%" height="100%" flexDirection="column" backgroundColor="#1a1b26">
       <TopBar />
       <SessionFlow />
-      <Show when={showGitStatus()}>
-        <GitStatusCard />
-      </Show>
-      <Show when={showCommitGraph()}>
-        <CommitGraph />
-      </Show>
+      {showGitStatus() && <GitStatusCard />}
+      {showCommitGraph() && <CommitGraph />}
       <BottomInput />
     </box>
   );
@@ -181,12 +181,14 @@ function App() {
 
 // ── 入口 ──────────────────────────────────────────────────
 
+export default App;
+
 export async function startTui() {
   try {
     await initEngine();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    addMessage("system", `⚠ 课程初始化失败：${msg}`);
+    addMessage("system", "⚠ 课程初始化失败：" + msg);
   }
-  await render(() => <App />);
+  await render(() => App());
 }
