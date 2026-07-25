@@ -121,9 +121,10 @@ export const LoginScreen: Component<LoginScreenProps> = (props) => {
         </text>
 
         <text fg={OpenCodeTheme.secondary}>姓名</text>
-        <box flexDirection="row" onMouseDown={() => focusField(FOCUS_NAME)}>
+        <box width="100%" flexDirection="row" onMouseDown={() => focusField(FOCUS_NAME)}>
           <input
             ref={(el) => (nameRef = el as InputRenderable)}
+            flexGrow={1}
             placeholder="如：张三"
             value={props.initial?.name ?? ""}
             focused
@@ -139,9 +140,10 @@ export const LoginScreen: Component<LoginScreenProps> = (props) => {
         </box>
 
         <text fg={OpenCodeTheme.secondary}>邮箱</text>
-        <box flexDirection="row" onMouseDown={() => focusField(FOCUS_EMAIL)}>
+        <box width="100%" flexDirection="row" onMouseDown={() => focusField(FOCUS_EMAIL)}>
           <input
             ref={(el) => (emailRef = el as InputRenderable)}
+            flexGrow={1}
             placeholder="如：zhangsan@example.com"
             value={props.initial?.email ?? ""}
             backgroundColor={OpenCodeTheme.selection}
