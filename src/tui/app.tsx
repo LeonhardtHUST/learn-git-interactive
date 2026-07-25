@@ -49,16 +49,11 @@ function TopBar() {
       justifyContent="space-between"
     >
       <text fg={OpenCodeTheme.primary} attributes={TextAttributes.BOLD}>
-        {"🎓 " + progress().course}
+        {`🎓 ${progress().course}`}
       </text>
-      <text fg={OpenCodeTheme.textMuted}>{progress().chapter + " | " + progress().lesson}</text>
+      <text fg={OpenCodeTheme.textMuted}>{`${progress().chapter} | ${progress().lesson}`}</text>
       <text fg={OpenCodeTheme.success}>
-        {"进度 " +
-          progress().completed +
-          "/" +
-          progress().total +
-          " " +
-          (autograde() ? "· 自动判题:开" : "· 自动判题:关")}
+        {`进度 ${progress().completed}/${progress().total} ${autograde() ? "· 自动判题:开" : "· 自动判题:关"}`}
       </text>
     </box>
   );
@@ -80,7 +75,9 @@ function MessageBubble(props: { msg: SessionMessage }) {
   return (
     <box paddingLeft={1} flexDirection="column">
       <For each={lines()}>
-        {(line, idx) => <text fg={style().fg}>{(idx() === 0 ? style().prefix : "") + line}</text>}
+        {(line, idx) => (
+          <text fg={style().fg}>{`${idx() === 0 ? style().prefix : ""}${line}`}</text>
+        )}
       </For>
     </box>
   );
@@ -110,12 +107,12 @@ function GitStatusCard() {
         📊 Git 状态
       </text>
       <text fg={OpenCodeTheme.text}>
-        {"分支：" + gitStatus().branch + " | HEAD：" + gitStatus().head}
+        {`分支：${gitStatus().branch} | HEAD：${gitStatus().head}`}
       </text>
       <text fg={OpenCodeTheme.text}>
-        {"工作区：" + gitStatus().workingTree + " | 暂存区：" + gitStatus().index}
+        {`工作区：${gitStatus().workingTree} | 暂存区：${gitStatus().index}`}
       </text>
-      <text fg={OpenCodeTheme.text}>{"远程：" + gitStatus().remoteTracking}</text>
+      <text fg={OpenCodeTheme.text}>{`远程：${gitStatus().remoteTracking}`}</text>
     </box>
   );
 }
@@ -128,10 +125,7 @@ function BottomInput() {
     if (!text.trim()) return;
     setInputValue("");
     handleInput(text).catch((err: unknown) => {
-      addMessage(
-        "system",
-        "⚠ 处理命令时出错：" + (err instanceof Error ? err.message : String(err)),
-      );
+      addMessage("system", `⚠ 处理命令时出错：${err instanceof Error ? err.message : String(err)}`);
     });
   };
 
