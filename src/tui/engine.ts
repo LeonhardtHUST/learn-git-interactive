@@ -6,6 +6,8 @@
  */
 
 import type { Chapter, Lesson } from "../course/schema";
+import { substituteLesson } from "../course/substitute";
+import type { UserProfile } from "../progress/store";
 import { type LoadedCourse, loadCourse } from "../course/loader";
 import type { CapabilityPolicy } from "../git/capability_policy";
 import { execGit, runUserGitCommand } from "../git/runner";
@@ -37,6 +39,8 @@ interface EngineState {
   hintIndex: number;
   autograde: boolean;
   completed: Set<string>;
+  /** 关卡通关回调（由 TUI 层用于持久化进度） */
+  onComplete?: (lessonId: string) => void;
 }
 
 let state: EngineState | null = null;
@@ -65,10 +69,23 @@ function currentPolicy(): CapabilityPolicy {
 // ── 初始化 ────────────────────────────────────────────────
 
 /** 初始化引擎：创建会话、加载课程、进入首个关卡 */
-export async function initEngine(opts: { baseDir?: string } = {}): Promise<void> {
+export async function initEngine(
+  opts: {
+    baseDir?: string;
+    /** 当前登录用户，用于关卡内的 {{user.name}}/{{user.email}} 占位符替换 */
+    user?: UserProfile;
+    /** 已完成的关卡（用于恢复进度） */
+    completed?: Record<string, number>;
+    /** 关卡通关回调（用于持久化进度） */
+    onComplete?: (lessonId: string) => void;
+  } = {},
+): Promise<void> {
   const loaded = await loadCourse("zh-CN");
   const sessionId = newSessionId();
-  const session = await createSession(sessionId, opts.baseDir);
+  // 允许通过环境变量 LEARN_GIT_SESSION_DIR 重定向会话目录（主要用于测试隔离）
+  const baseDir = opts.baseDir ?? process.env.LEARN_GIT_SESSION_DIR;
+  const session = await createSession(sessionId, baseDir);
+  const user: UserProfile = opts.user ?? { name: "", email: "" };
 
   // 按课程 → 章节 → 关卡顺序扁平化。
   // loaded.lessons 是按「章节文件顺序」插入的 Map，用 source.chapter 的章号归属到各章。
@@ -82,10 +99,14 @@ export async function initEngine(opts: { baseDir?: string } = {}): Promise<void>
       if (lesson.source.chapter.startsWith(prefix)) {
         order += 1;
         assigned.add(lesson.id);
-        entries.push({ lesson, chapter, order });
+        // 用当前用户替换关卡内的 {{user.name}}/{{user.email}} 占位符
+        const resolved = substituteLesson(lesson, user);
+        entries.push({ lesson: resolved, chapter, order });
       }
     }
   }
+
+  const completed = new Set<string>(Object.keys(opts.completed ?? {}));
 
   state = {
     loaded,
@@ -94,7 +115,8 @@ export async function initEngine(opts: { baseDir?: string } = {}): Promise<void>
     currentIndex: 0,
     hintIndex: 0,
     autograde: true,
-    completed: new Set(),
+    completed,
+    onComplete: opts.onComplete,
   };
   setAutograde(true);
 
@@ -217,6 +239,7 @@ export async function gradeCurrent(opts: { silentOnFail?: boolean } = {}): Promi
   if (outcome.passed) {
     const already = s.completed.has(lesson.id);
     s.completed.add(lesson.id);
+    s.onComplete?.(lesson.id);
     refreshProgress();
     if (!already) {
       addMessage("result", `✅ 通关：${lesson.title}`);

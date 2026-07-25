@@ -5,6 +5,7 @@
  */
 
 import { createSignal } from "solid-js";
+import type { UserProfile } from "../progress/store";
 
 /** 当前视图模式 */
 export type ViewMode = "course" | "lessons" | "command" | "themes" | "help";
@@ -69,6 +70,9 @@ export const [showGitStatus, setShowGitStatus] = createSignal(true);
 export const [showCommitGraph, setShowCommitGraph] = createSignal(false);
 
 export const [currentCommand, setCurrentCommand] = createSignal("");
+
+/** 当前登录用户（首次运行填写，可修改） */
+export const [user, setUser] = createSignal<UserProfile>({ name: "", email: "" });
 
 let nextMessageId = 1;
 

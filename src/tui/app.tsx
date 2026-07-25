@@ -6,10 +6,11 @@
 
 import { TextAttributes } from "@opentui/core";
 import { render } from "@opentui/solid";
-import { For, Show } from "solid-js";
+import { For } from "solid-js";
 
 import { handleInput } from "./commands";
 import { initEngine } from "./engine";
+import { LoginScreen } from "./login";
 import {
   addMessage,
   autograde,
@@ -17,12 +18,21 @@ import {
   gitStatus,
   inputValue,
   progress,
+  setUser,
   type SessionMessage,
   sessionMessages,
   setInputValue,
   showCommitGraph,
   showGitStatus,
 } from "./store";
+import {
+  type SavedConfig,
+  defaultConfig,
+  hasIdentity,
+  loadConfig,
+  markLessonComplete,
+  saveConfig,
+} from "../progress/store";
 
 // ── 子组件：顶栏 ──────────────────────────────────────────
 
@@ -179,16 +189,70 @@ function App() {
   );
 }
 
+// ── 登录 → 主课程 的衔接 ──────────────────────────────────
+
+/**
+ * 落盘用户身份并初始化课程引擎（不负责渲染）。
+ *
+ * 拆分出「状态准备」与「渲染」两步：入口 enterCourse 复用它并追加整体重渲染；
+ * 测试则可先 prepareCourse 再自行 testRender(<App />)，避免跨渲染器的异步竞态。
+ */
+export async function prepareCourse(u: SavedConfig["user"]): Promise<void> {
+  setUser(u);
+  addMessage("system", `👋 欢迎，${u.name}！我们开始学习吧。输入 /lessons 查看全部课程。`);
+  const cfg = await loadConfig();
+  const updated = { ...cfg, user: u };
+  await saveConfig(updated);
+  await initEngine({
+    user: u,
+    completed: updated.completedLessons,
+    onComplete: (lessonId: string) => {
+      const next = markLessonComplete(updated, lessonId);
+      void saveConfig(next);
+    },
+  });
+}
+
+/** 落盘用户身份、初始化引擎，并切换到主课程界面 */
+export async function enterCourse(u: SavedConfig["user"]): Promise<void> {
+  try {
+    await prepareCourse(u);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    addMessage("system", `⚠ 课程初始化失败：${msg}`);
+  }
+  // 直接整体重渲染为主课程界面（避免在测试/无头渲染器下依赖组件内信号切换）
+  await render(() => <App />);
+}
+
 // ── 入口 ──────────────────────────────────────────────────
 
 export default App;
 
 export async function startTui() {
+  let cfg: SavedConfig;
   try {
-    await initEngine();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    addMessage("system", "⚠ 课程初始化失败：" + msg);
+    cfg = await loadConfig();
+  } catch {
+    cfg = defaultConfig();
   }
-  await render(() => App());
+  if (hasIdentity(cfg)) {
+    setUser(cfg.user);
+    try {
+      await initEngine({
+        user: cfg.user,
+        completed: cfg.completedLessons,
+        onComplete: (lessonId: string) => {
+          cfg = markLessonComplete(cfg, lessonId);
+          void saveConfig(cfg);
+        },
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      addMessage("system", `⚠ 课程初始化失败：${msg}`);
+    }
+    await render(() => <App />);
+  } else {
+    await render(() => <LoginScreen onComplete={enterCourse} />);
+  }
 }

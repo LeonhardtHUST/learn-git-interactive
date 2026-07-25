@@ -12,9 +12,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { listLessonFiles, loadLesson } from "../../src/course/loader";
 import type { Lesson } from "../../src/course/schema";
+import { substituteLesson } from "../../src/course/substitute";
 import { applySteps, buildFixture } from "../../src/sandbox/fixtures";
 import { createSession } from "../../src/sandbox/session";
 import { grade, type GraderContext } from "../../src/grader/grader";
+
+// 契约测试用一个固定的「测试用户」替换关卡内的 {{user.name}}/{{user.email}}，
+// 以验证含占位符的关卡（如配置身份）确实可用真实值通关。
+const TEST_USER = { name: "契约测试用户", email: "contract@example.com" };
 
 const files = await listLessonFiles("zh-CN");
 const solvable: { file: string; lesson: Lesson }[] = [];
@@ -36,14 +41,16 @@ describe("课程契约：每道关卡都能用参考解法通关", () => {
       const safeId = lesson.id.replace(/[^a-z0-9]/gi, "_");
       const session = await createSession(`contract_${safeId}`, base);
       try {
-        const { learnerRepo } = await buildFixture(session, lesson.setup.fixture);
-        const solution = lesson.solution;
+        // 用测试用户替换占位符，确保判题与解法使用一致的真实值
+        const resolved = substituteLesson(lesson, TEST_USER);
+        const { learnerRepo } = await buildFixture(session, resolved.setup.fixture);
+        const solution = resolved.solution;
         if (!solution || solution.length === 0) {
           throw new Error(`关卡 ${lesson.id} 缺少参考解法（solution）。`);
         }
         await applySteps(session, solution);
         const ctx: GraderContext = { repo: learnerRepo, session };
-        const result = await grade(ctx, lesson.checks);
+        const result = await grade(ctx, resolved.checks);
         if (!result.passed) {
           const details = result.results
             .filter((r) => !r.passed)
