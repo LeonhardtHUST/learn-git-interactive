@@ -113,7 +113,7 @@ describe("登录流程", () => {
         }}
       />
     ));
-    await setup.waitFor(() => setup.captureCharFrame().includes("确认提交"), {
+    await setup.waitFor(() => setup.captureCharFrame().includes("确认"), {
       maxPasses: 200,
     });
 
@@ -143,7 +143,7 @@ describe("登录流程", () => {
         }}
       />
     ));
-    await setup.waitFor(() => setup.captureCharFrame().includes("确认提交"), {
+    await setup.waitFor(() => setup.captureCharFrame().includes("确认"), {
       maxPasses: 200,
     });
 
@@ -167,7 +167,7 @@ describe("登录流程", () => {
         }}
       />
     ));
-    await setup.waitFor(() => setup.captureCharFrame().includes("确认提交"), {
+    await setup.waitFor(() => setup.captureCharFrame().includes("确认"), {
       maxPasses: 200,
     });
 
@@ -179,9 +179,9 @@ describe("登录流程", () => {
     await setup.renderOnce();
     await setup.waitForVisualIdle();
 
-    const pos = findSpanCenter(setup.captureSpans(), "确认提交");
+    const pos = findSpanCenter(setup.captureSpans(), "确认");
     expect(pos).not.toBeNull();
-    if (!pos) throw new Error("未找到确认提交按钮位置");
+    if (!pos) throw new Error("未找到确认按钮位置");
     await setup.mockMouse.click(pos.x, pos.y);
     await setup.renderOnce();
 

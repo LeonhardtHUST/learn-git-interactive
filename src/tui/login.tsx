@@ -42,6 +42,11 @@ export const LoginScreen: Component<LoginScreenProps> = (props) => {
 
   const focusField = (idx: number) => {
     setFocusIndex(idx);
+    // 显式 blur 其它字段：focused 属性在部分渲染器下不具备响应式，
+    // 若不 blur 会出现多个输入框同时聚焦、打字被同时写入两个框的 bug。
+    if (idx !== FOCUS_NAME) nameRef?.blur();
+    if (idx !== FOCUS_EMAIL) emailRef?.blur();
+    if (idx !== FOCUS_BUTTON) buttonRef?.blur();
     if (idx === FOCUS_NAME) nameRef?.focus();
     else if (idx === FOCUS_EMAIL) emailRef?.focus();
     else if (idx === FOCUS_BUTTON) buttonRef?.focus();
@@ -98,15 +103,6 @@ export const LoginScreen: Component<LoginScreenProps> = (props) => {
       flexDirection="column"
       alignItems="center"
       justifyContent="center"
-      onKeyDown={(e: KeyEvent) => {
-        // 兜底：卡片容器也拦截 Tab，防止焦点跳到卡片外
-        if (e.name === "tab") {
-          e.preventDefault();
-          e.stopPropagation();
-          const next = e.shift ? FOCUS_BUTTON : FOCUS_EMAIL;
-          focusField(next);
-        }
-      }}
     >
       <box
         borderStyle="single"
@@ -129,8 +125,8 @@ export const LoginScreen: Component<LoginScreenProps> = (props) => {
           <input
             ref={(el) => (nameRef = el as InputRenderable)}
             placeholder="如：张三"
-            value={name()}
-            focused={focusIndex() === FOCUS_NAME}
+            value={props.initial?.name ?? ""}
+            focused
             backgroundColor={OpenCodeTheme.selection}
             textColor={OpenCodeTheme.text}
             focusedBackgroundColor={OpenCodeTheme.selection}
@@ -147,8 +143,7 @@ export const LoginScreen: Component<LoginScreenProps> = (props) => {
           <input
             ref={(el) => (emailRef = el as InputRenderable)}
             placeholder="如：zhangsan@example.com"
-            value={email()}
-            focused={focusIndex() === FOCUS_EMAIL}
+            value={props.initial?.email ?? ""}
             backgroundColor={OpenCodeTheme.selection}
             textColor={OpenCodeTheme.text}
             focusedBackgroundColor={OpenCodeTheme.selection}
@@ -162,32 +157,25 @@ export const LoginScreen: Component<LoginScreenProps> = (props) => {
 
         {error() ? <text fg={OpenCodeTheme.error}>⚠ {error()}</text> : null}
 
-        <box
-          ref={(el) => (buttonRef = el as BoxRenderable)}
-          marginTop={1}
-          paddingX={2}
-          paddingY={1}
-          borderStyle="single"
-          borderColor={buttonFocused() ? OpenCodeTheme.borderFocused : OpenCodeTheme.border}
-          backgroundColor={
-            buttonFocused() ? OpenCodeTheme.selection : OpenCodeTheme.backgroundPanel
-          }
-          focusable
-          focused={buttonFocused()}
-          onMouseDown={() => {
-            focusField(FOCUS_BUTTON);
-            submit();
-          }}
-          onKeyDown={(e: KeyEvent) => onKeyNavigation(e, FOCUS_BUTTON)}
-          alignItems="center"
-          justifyContent="center"
-        >
-          <text
-            fg={buttonFocused() ? OpenCodeTheme.primary : OpenCodeTheme.text}
-            attributes={TextAttributes.BOLD}
+        <box marginTop={1} flexDirection="row" justifyContent="flex-end">
+          <box
+            ref={(el) => (buttonRef = el as BoxRenderable)}
+            paddingX={2}
+            backgroundColor={buttonFocused() ? OpenCodeTheme.primary : OpenCodeTheme.selection}
+            focusable
+            onMouseDown={() => {
+              focusField(FOCUS_BUTTON);
+              submit();
+            }}
+            onKeyDown={(e: KeyEvent) => onKeyNavigation(e, FOCUS_BUTTON)}
           >
-            确认提交
-          </text>
+            <text
+              fg={buttonFocused() ? OpenCodeTheme.background : OpenCodeTheme.text}
+              attributes={TextAttributes.BOLD}
+            >
+              确认
+            </text>
+          </box>
         </box>
 
         <text fg={OpenCodeTheme.textMuted} attributes={TextAttributes.DIM}>
