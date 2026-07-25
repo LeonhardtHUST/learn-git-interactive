@@ -10,6 +10,7 @@ import { TextAttributes } from "@opentui/core";
 import type { InputRenderable } from "@opentui/core";
 import { createSignal, type Component } from "solid-js";
 import type { UserProfile } from "../progress/store";
+import { OpenCodeTheme } from "./theme";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -54,49 +55,59 @@ export const LoginScreen: Component<LoginScreenProps> = (props) => {
     <box
       width="100%"
       height="100%"
-      backgroundColor="#1a1b26"
+      backgroundColor={OpenCodeTheme.background}
       flexDirection="column"
       alignItems="center"
       justifyContent="center"
     >
       <box
         borderStyle="single"
-        borderColor="#7aa2f7"
+        borderColor={OpenCodeTheme.border}
         padding={2}
         width={60}
         flexDirection="column"
-        backgroundColor="#24283b"
+        backgroundColor={OpenCodeTheme.backgroundPanel}
       >
-        <text fg="#7aa2f7" attributes={TextAttributes.BOLD}>
+        <text fg={OpenCodeTheme.primary} attributes={TextAttributes.BOLD}>
           🎓 Git 交互式课程
         </text>
-        <text fg="#c0caf5">首次使用，请设置你的 Git 身份：</text>
-        <text fg="#565f89" attributes={TextAttributes.DIM}>
+        <text fg={OpenCodeTheme.text}>首次使用，请设置你的 Git 身份：</text>
+        <text fg={OpenCodeTheme.textMuted} attributes={TextAttributes.DIM}>
           姓名与邮箱会用于课程里的配置任务（如 git config user.name）。
         </text>
 
-        <text fg="#9ece6a">姓名</text>
+        <text fg={OpenCodeTheme.secondary}>姓名</text>
         <input
           ref={(el) => (nameRef = el as InputRenderable)}
           placeholder="如：张三"
           value={name()}
           focused
+          backgroundColor={OpenCodeTheme.selection}
+          textColor={OpenCodeTheme.text}
+          focusedBackgroundColor={OpenCodeTheme.selection}
+          focusedTextColor={OpenCodeTheme.text}
+          placeholderColor={OpenCodeTheme.textMuted}
           onInput={(v: string) => setName(v)}
           onSubmit={onNameSubmit}
         />
 
-        <text fg="#9ece6a">邮箱</text>
+        <text fg={OpenCodeTheme.secondary}>邮箱</text>
         <input
           ref={(el) => (emailRef = el as InputRenderable)}
           placeholder="如：zhangsan@example.com"
           value={email()}
+          backgroundColor={OpenCodeTheme.selection}
+          textColor={OpenCodeTheme.text}
+          focusedBackgroundColor={OpenCodeTheme.selection}
+          focusedTextColor={OpenCodeTheme.text}
+          placeholderColor={OpenCodeTheme.textMuted}
           onInput={(v: string) => setEmail(v)}
           onSubmit={submit}
         />
 
-        {error() ? <text fg="#f7768e">⚠ {error()}</text> : null}
+        {error() ? <text fg={OpenCodeTheme.error}>⚠ {error()}</text> : null}
 
-        <text fg="#565f89" attributes={TextAttributes.DIM}>
+        <text fg={OpenCodeTheme.textMuted} attributes={TextAttributes.DIM}>
           提示：在姓名处回车切到邮箱，在邮箱处回车确认提交。
         </text>
       </box>

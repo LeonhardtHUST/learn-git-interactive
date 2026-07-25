@@ -11,6 +11,7 @@ import { For } from "solid-js";
 import { handleInput } from "./commands";
 import { initEngine } from "./engine";
 import { LoginScreen } from "./login";
+import { OpenCodeTheme } from "./theme";
 import {
   addMessage,
   autograde,
@@ -39,7 +40,7 @@ import {
 function TopBar() {
   return (
     <box
-      backgroundColor="#1a1b26"
+      backgroundColor={OpenCodeTheme.background}
       paddingLeft={1}
       paddingRight={1}
       height={3}
@@ -47,11 +48,11 @@ function TopBar() {
       alignItems="center"
       justifyContent="space-between"
     >
-      <text fg="#7aa2f7" attributes={TextAttributes.BOLD}>
+      <text fg={OpenCodeTheme.primary} attributes={TextAttributes.BOLD}>
         {"🎓 " + progress().course}
       </text>
-      <text fg="#565f89">{progress().chapter + " | " + progress().lesson}</text>
-      <text fg="#9ece6a">
+      <text fg={OpenCodeTheme.textMuted}>{progress().chapter + " | " + progress().lesson}</text>
+      <text fg={OpenCodeTheme.success}>
         {"进度 " +
           progress().completed +
           "/" +
@@ -66,11 +67,11 @@ function TopBar() {
 // ── 子组件：会话消息流 ────────────────────────────────────
 
 const MESSAGE_STYLES: Record<SessionMessage["type"], { fg: string; prefix: string }> = {
-  system: { fg: "#c0caf5", prefix: "" },
-  user: { fg: "#7dcfff", prefix: "" },
-  "git-output": { fg: "#9ece6a", prefix: "" },
-  result: { fg: "#e0af68", prefix: "" },
-  hint: { fg: "#bb9af7", prefix: "💡 " },
+  system: { fg: OpenCodeTheme.text, prefix: "" },
+  user: { fg: OpenCodeTheme.secondary, prefix: "" },
+  "git-output": { fg: OpenCodeTheme.success, prefix: "" },
+  result: { fg: OpenCodeTheme.textEmphasized, prefix: "" },
+  hint: { fg: OpenCodeTheme.accent, prefix: "💡 " },
 };
 
 function MessageBubble(props: { msg: SessionMessage }) {
@@ -98,21 +99,23 @@ function SessionFlow() {
 function GitStatusCard() {
   return (
     <box
-      backgroundColor="#24283b"
+      backgroundColor={OpenCodeTheme.backgroundPanel}
       borderStyle="single"
-      borderColor="#565f89"
+      borderColor={OpenCodeTheme.border}
       padding={1}
       flexDirection="column"
       height={6}
     >
-      <text fg="#7aa2f7" attributes={TextAttributes.BOLD}>
+      <text fg={OpenCodeTheme.primary} attributes={TextAttributes.BOLD}>
         📊 Git 状态
       </text>
-      <text fg="#c0caf5">{"分支：" + gitStatus().branch + " | HEAD：" + gitStatus().head}</text>
-      <text fg="#c0caf5">
+      <text fg={OpenCodeTheme.text}>
+        {"分支：" + gitStatus().branch + " | HEAD：" + gitStatus().head}
+      </text>
+      <text fg={OpenCodeTheme.text}>
         {"工作区：" + gitStatus().workingTree + " | 暂存区：" + gitStatus().index}
       </text>
-      <text fg="#c0caf5">{"远程：" + gitStatus().remoteTracking}</text>
+      <text fg={OpenCodeTheme.text}>{"远程：" + gitStatus().remoteTracking}</text>
     </box>
   );
 }
@@ -135,19 +138,24 @@ function BottomInput() {
   return (
     <box
       borderStyle="single"
-      borderColor="#3b4261"
+      borderColor={OpenCodeTheme.border}
       paddingLeft={1}
       paddingRight={1}
       height={4}
       flexDirection="column"
     >
-      <text fg="#565f89" attributes={TextAttributes.DIM}>
+      <text fg={OpenCodeTheme.textMuted} attributes={TextAttributes.DIM}>
         ↑ 输入 Git 命令或 / 命令 | /help 查看帮助 | /quit 退出
       </text>
       <input
         placeholder="输入命令..."
         value={inputValue()}
         focused
+        backgroundColor={OpenCodeTheme.backgroundPanel}
+        textColor={OpenCodeTheme.text}
+        focusedBackgroundColor={OpenCodeTheme.backgroundPanel}
+        focusedTextColor={OpenCodeTheme.text}
+        placeholderColor={OpenCodeTheme.textMuted}
         onSubmit={handleSubmit}
         onInput={(v: string) => setInputValue(v)}
       />
@@ -160,17 +168,17 @@ function BottomInput() {
 function CommitGraph() {
   return (
     <box
-      backgroundColor="#24283b"
+      backgroundColor={OpenCodeTheme.backgroundPanel}
       borderStyle="single"
-      borderColor="#565f89"
+      borderColor={OpenCodeTheme.border}
       padding={1}
       flexDirection="column"
       flexShrink={0}
     >
-      <text fg="#7aa2f7" attributes={TextAttributes.BOLD}>
+      <text fg={OpenCodeTheme.primary} attributes={TextAttributes.BOLD}>
         📈 提交关系图
       </text>
-      <For each={commitGraph()}>{(line) => <text fg="#9ece6a">{line}</text>}</For>
+      <For each={commitGraph()}>{(line) => <text fg={OpenCodeTheme.success}>{line}</text>}</For>
     </box>
   );
 }
@@ -179,7 +187,12 @@ function CommitGraph() {
 
 function App() {
   return (
-    <box width="100%" height="100%" flexDirection="column" backgroundColor="#1a1b26">
+    <box
+      width="100%"
+      height="100%"
+      flexDirection="column"
+      backgroundColor={OpenCodeTheme.background}
+    >
       <TopBar />
       <SessionFlow />
       {showGitStatus() && <GitStatusCard />}
