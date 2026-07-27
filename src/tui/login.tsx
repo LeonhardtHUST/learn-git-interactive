@@ -23,6 +23,9 @@ const FOCUS_NAME = 0;
 const FOCUS_EMAIL = 1;
 const FOCUS_BUTTON = 2;
 
+/** 所有被视为「回车」的按键名 */
+const ENTER_KEYS = new Set(["return", "enter", "kpenter", "linefeed"]);
+
 export interface LoginScreenProps {
   /** 提交成功（姓名与邮箱均校验通过）时回调 */
   onComplete: (user: UserProfile) => void;
@@ -75,6 +78,10 @@ export const LoginScreen: Component<LoginScreenProps> = (props) => {
     else focusField(FOCUS_EMAIL);
   };
 
+  // 在 onKeyDown 中直接处理所有字段的 Enter——这是最可靠的路径，
+  // 因为 keypressHandler 总是先调用 _keyListeners["down"]（onKeyDown），
+  // 再调用 handleKeyPress。即使 onSubmit 因任何原因未触发，
+  // Enter 也能在这里被处理。
   const onKeyNavigation = (e: KeyEvent, current: number) => {
     if (e.name === "tab") {
       e.preventDefault();
@@ -83,10 +90,16 @@ export const LoginScreen: Component<LoginScreenProps> = (props) => {
       focusField(next);
       return;
     }
-    if (
-      current === FOCUS_BUTTON &&
-      (e.name === "return" || e.name === "enter" || e.name === "space")
-    ) {
+    // Enter：所有字段统一处理
+    if (ENTER_KEYS.has(e.name)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (current === FOCUS_NAME) onNameSubmit();
+      else submit(); // FOCUS_EMAIL 和 FOCUS_BUTTON 都直接提交
+      return;
+    }
+    // 空格：仅按钮触发提交
+    if (current === FOCUS_BUTTON && e.name === "space") {
       e.preventDefault();
       e.stopPropagation();
       submit();
