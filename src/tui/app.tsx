@@ -4,7 +4,7 @@
  * 五区域布局：顶栏 / 会话流 / Git 状态卡 / 提交图 / 底部输入
  */
 
-import { TextAttributes } from "@opentui/core";
+import { type CliRenderer, TextAttributes, createCliRenderer } from "@opentui/core";
 import { render } from "@opentui/solid";
 import { For } from "solid-js";
 
@@ -228,11 +228,22 @@ export async function enterCourse(u: SavedConfig["user"]): Promise<void> {
     const msg = err instanceof Error ? err.message : String(err);
     addMessage("system", `⚠ 课程初始化失败：${msg}`);
   }
-  // 直接整体重渲染为主课程界面（避免在测试/无头渲染器下依赖组件内信号切换）
-  await render(() => <App />);
+  // 复用同一个 CliRenderer 渲染主课程界面，避免重复占用 stdin/stdout
+  await render(() => <App />, await getRenderer());
 }
 
 // ── 入口 ──────────────────────────────────────────────────
+
+// 全局复用同一个 CliRenderer：登录界面与主课程界面共享 stdin/stdout，
+// 避免切换时再次 createCliRenderer 触发 "stdin is already used" 错误。
+let renderer: CliRenderer | undefined;
+
+async function getRenderer(): Promise<CliRenderer> {
+  if (!renderer || renderer.isDestroyed) {
+    renderer = await createCliRenderer({ useMouse: true });
+  }
+  return renderer;
+}
 
 export default App;
 
@@ -243,6 +254,7 @@ export async function startTui() {
   } catch {
     cfg = defaultConfig();
   }
+  const r = await getRenderer();
   if (hasIdentity(cfg)) {
     setUser(cfg.user);
     try {
@@ -258,8 +270,8 @@ export async function startTui() {
       const msg = err instanceof Error ? err.message : String(err);
       addMessage("system", `⚠ 课程初始化失败：${msg}`);
     }
-    await render(() => <App />);
+    await render(() => <App />, r);
   } else {
-    await render(() => <LoginScreen onComplete={enterCourse} />);
+    await render(() => <LoginScreen onComplete={enterCourse} />, r);
   }
 }
