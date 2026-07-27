@@ -216,14 +216,10 @@ function Root() {
 // ── 登录 → 主课程 的衔接 ──────────────────────────────────
 
 /**
- * 落盘用户身份并初始化课程引擎（不负责渲染）。
- *
- * 拆分出「状态准备」与「渲染」两步：入口 enterCourse 复用它并追加整体重渲染；
- * 测试则可先 prepareCourse 再自行 testRender(<App />)，避免跨渲染器的异步竞态。
+ * 落盘用户身份并初始化课程引擎（不含 UI 状态设置与屏幕切换）。
+ * 供 prepareCourse（测试入口）与 enterCourse（UI 入口）复用，避免逻辑重复。
  */
-export async function prepareCourse(u: SavedConfig["user"]): Promise<void> {
-  setUser(u);
-  addMessage("system", `👋 欢迎，${u.name}！我们开始学习吧。输入 /lessons 查看全部课程。`);
+async function initCourseBackend(u: SavedConfig["user"]): Promise<void> {
   const cfg = await loadConfig();
   const updated = { ...cfg, user: u };
   await saveConfig(updated);
@@ -237,16 +233,36 @@ export async function prepareCourse(u: SavedConfig["user"]): Promise<void> {
   });
 }
 
-/** 落盘用户身份、初始化引擎，并切换到主课程界面 */
+/**
+ * 落盘身份并初始化引擎（测试入口：全 await，完成后即可渲染 <App />）。
+ * 不负责屏幕切换——测试自行 testRender(<App />)，避免跨渲染器异步竞态。
+ */
+export async function prepareCourse(u: SavedConfig["user"]): Promise<void> {
+  setUser(u);
+  addMessage("system", `👋 欢迎，${u.name}！我们开始学习吧。输入 /lessons 查看全部课程。`);
+  await initCourseBackend(u);
+}
+
+/**
+ * 登录完成回调：立即切换到主课程界面，引擎在后台初始化（不阻塞 UI）。
+ *
+ * 关键：setScreen("course") 必须在 initEngine 之前同步执行——initEngine 会
+ * 重建实验仓库、跑多个 git 命令（数秒），若等它完成才切屏幕，用户会感觉
+ * 「点确认没反应」。先切屏幕让 App 立即显示（进度暂为「加载中」），引擎
+ * 完成后通过 progress/gitStatus/sessionMessages 信号驱动 App 渐进更新。
+ */
 export async function enterCourse(u: SavedConfig["user"]): Promise<void> {
+  setUser(u);
+  addMessage("system", `👋 欢迎，${u.name}！我们开始学习吧。输入 /lessons 查看全部课程。`);
+  // 立即切换屏幕：Solid reconciler 卸载 LoginScreen、挂载 App 并转移焦点
+  setScreen("course");
+  // 后台落盘并初始化引擎；失败时在主界面会话流里提示
   try {
-    await prepareCourse(u);
+    await initCourseBackend(u);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     addMessage("system", `⚠ 课程初始化失败：${msg}`);
   }
-  // 通过信号切换屏幕：Solid reconciler 卸载 LoginScreen、挂载 App 并转移焦点
-  setScreen("course");
 }
 
 // ── 入口 ──────────────────────────────────────────────────
