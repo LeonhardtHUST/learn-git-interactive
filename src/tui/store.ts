@@ -31,6 +31,10 @@ export interface GitStatus {
 
 export const [viewMode, setViewMode] = createSignal<ViewMode>("course");
 
+/** 顶层屏幕：登录界面 / 主课程界面（由 Root 组件依据此信号切换） */
+export type Screen = "login" | "course";
+export const [screen, setScreen] = createSignal<Screen>("login");
+
 export const [inputValue, setInputValue] = createSignal("");
 
 export const [sessionMessages, setSessionMessages] = createSignal<SessionMessage[]>([

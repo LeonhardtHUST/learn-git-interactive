@@ -19,6 +19,8 @@ import {
   gitStatus,
   inputValue,
   progress,
+  screen,
+  setScreen,
   setUser,
   type SessionMessage,
   sessionMessages,
@@ -142,6 +144,7 @@ function BottomInput() {
         ↑ 输入 Git 命令或 / 命令 | /help 查看帮助 | /quit 退出
       </text>
       <input
+        flexGrow={1}
         placeholder="输入命令..."
         value={inputValue()}
         focused
@@ -196,6 +199,20 @@ function App() {
   );
 }
 
+// ── 根组件：屏幕切换 ──────────────────────────────────────
+
+/**
+ * 顶层根组件：依据 screen() 信号在登录界面与主课程界面之间切换。
+ *
+ * 关键约束：对同一个 CliRenderer 只能调用一次 render()——
+ * mountSolidRoot 的 dispose 只在 renderer 销毁时触发，二次 render 会把新根
+ * 追加到 renderer.root 上（旧根不卸载），导致两棵组件树竞争布局与焦点。
+ * 因此屏幕切换必须由 Solid reconciler 通过信号完成，而非再次 render()。
+ */
+function Root() {
+  return screen() === "login" ? <LoginScreen onComplete={enterCourse} /> : <App />;
+}
+
 // ── 登录 → 主课程 的衔接 ──────────────────────────────────
 
 /**
@@ -228,8 +245,8 @@ export async function enterCourse(u: SavedConfig["user"]): Promise<void> {
     const msg = err instanceof Error ? err.message : String(err);
     addMessage("system", `⚠ 课程初始化失败：${msg}`);
   }
-  // 复用同一个 CliRenderer 渲染主课程界面，避免重复占用 stdin/stdout
-  await render(() => <App />, await getRenderer());
+  // 通过信号切换屏幕：Solid reconciler 卸载 LoginScreen、挂载 App 并转移焦点
+  setScreen("course");
 }
 
 // ── 入口 ──────────────────────────────────────────────────
@@ -257,6 +274,7 @@ export async function startTui() {
   const r = await getRenderer();
   if (hasIdentity(cfg)) {
     setUser(cfg.user);
+    setScreen("course"); // 有身份：Root 首次渲染即主课程界面
     try {
       await initEngine({
         user: cfg.user,
@@ -270,8 +288,7 @@ export async function startTui() {
       const msg = err instanceof Error ? err.message : String(err);
       addMessage("system", `⚠ 课程初始化失败：${msg}`);
     }
-    await render(() => <App />, r);
-  } else {
-    await render(() => <LoginScreen onComplete={enterCourse} />, r);
   }
+  // 对同一 renderer 只 render 一次；后续屏幕切换全部经由 screen 信号
+  await render(() => <Root />, r);
 }
