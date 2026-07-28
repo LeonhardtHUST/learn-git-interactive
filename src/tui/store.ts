@@ -31,11 +31,14 @@ export interface GitStatus {
 
 export const [viewMode, setViewMode] = createSignal<ViewMode>("course");
 
-/** 顶层屏幕：登录界面 / 主课程界面（由 Root 组件依据此信号切换） */
-export type Screen = "login" | "course";
+/** 顶层屏幕：登录、课程准备、主课程（由 Root 组件依据此信号切换） */
+export type Screen = "login" | "welcome" | "course";
 export const [screen, setScreen] = createSignal<Screen>("login");
 
 export const [inputValue, setInputValue] = createSignal("");
+
+/** 跨启动持久化的命令历史（由 app 在加载配置后填充）。 */
+export const [commandHistory, setCommandHistory] = createSignal<string[]>([]);
 
 export const [sessionMessages, setSessionMessages] = createSignal<SessionMessage[]>([
   {

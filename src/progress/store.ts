@@ -12,7 +12,7 @@
  * 避免污染真实用户数据。
  */
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -29,8 +29,12 @@ export interface SavedConfig {
   user: UserProfile;
   /** lessonId -> 完成时间戳（毫秒） */
   completedLessons: Record<string, number>;
+  /** 最近输入的命令（跨启动恢复，最多保留 100 条） */
+  commandHistory: string[];
   updatedAt: number;
 }
+
+export const MAX_COMMAND_HISTORY = 100;
 
 /** 配置文件位置：默认 ~/.learn-git-interactive.json */
 export function configFile(): string {
@@ -41,7 +45,13 @@ export function configFile(): string {
 
 /** 空配置（尚未填写用户身份） */
 export function defaultConfig(): SavedConfig {
-  return { version: 1, user: { name: "", email: "" }, completedLessons: {}, updatedAt: Date.now() };
+  return {
+    version: 1,
+    user: { name: "", email: "" },
+    completedLessons: {},
+    commandHistory: [],
+    updatedAt: Date.now(),
+  };
 }
 
 /** 判断用户是否已填写身份（姓名与邮箱均非空） */
@@ -62,6 +72,7 @@ export async function loadConfig(): Promise<SavedConfig> {
           email: String(data.user.email ?? ""),
         },
         completedLessons: data.completedLessons as Record<string, number>,
+        commandHistory: normalizeCommandHistory(data.commandHistory),
         updatedAt: data.updatedAt ?? Date.now(),
       };
     }
@@ -72,10 +83,36 @@ export async function loadConfig(): Promise<SavedConfig> {
 }
 
 /** 写入配置（自动创建父目录） */
-export async function saveConfig(config: SavedConfig): Promise<void> {
-  await mkdir(dirname(configFile()), { recursive: true });
+export async function saveConfig(config: SavedConfig): Promise<SavedConfig> {
+  const target = configFile();
+  await mkdir(dirname(target), { recursive: true });
   const snapshot: SavedConfig = { ...config, updatedAt: Date.now() };
-  await writeFile(configFile(), JSON.stringify(snapshot, null, 2), "utf8");
+  const temporary = `${target}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  await writeFile(temporary, JSON.stringify(snapshot, null, 2), "utf8");
+  await rename(temporary, target);
+  return snapshot;
+}
+
+let configUpdateQueue: Promise<void> = Promise.resolve();
+
+/**
+ * 串行读取、更新并原子写回配置，避免进度保存与历史保存互相覆盖。
+ * 每个更新都以前一个更新真正落盘后的内容为基准。
+ */
+export function updateConfig(updater: (config: SavedConfig) => SavedConfig): Promise<SavedConfig> {
+  let result: SavedConfig | undefined;
+  const task = configUpdateQueue.then(async () => {
+    result = await saveConfig(updater(await loadConfig()));
+  });
+  // 即使本次写入失败，也允许后续更新继续执行；调用方仍会收到本次失败。
+  configUpdateQueue = task.then(
+    () => undefined,
+    () => undefined,
+  );
+  return task.then(() => {
+    if (!result) throw new Error("配置更新未产生结果。");
+    return result;
+  });
 }
 
 /** 返回把某关卡标记为已完成后的新配置（不可变更新） */
@@ -85,6 +122,35 @@ export function markLessonComplete(config: SavedConfig, lessonId: string): Saved
     completedLessons: { ...config.completedLessons, [lessonId]: Date.now() },
     updatedAt: Date.now(),
   };
+}
+
+/** 追加一条命令历史；仅压缩连续重复项，并限制总条数。 */
+export function appendCommandHistory(config: SavedConfig, command: string): SavedConfig {
+  const history = appendHistoryEntry(config.commandHistory, command);
+  if (history === config.commandHistory) return config;
+  return {
+    ...config,
+    commandHistory: history,
+    updatedAt: Date.now(),
+  };
+}
+
+/** 纯历史更新，供 TUI 先更新内存状态、再异步持久化。 */
+export function appendHistoryEntry(history: readonly string[], command: string): string[] {
+  if (!command.trim() || history.at(-1) === command) return history as string[];
+  const entry = command;
+  return [...history, entry].slice(-MAX_COMMAND_HISTORY);
+}
+
+function normalizeCommandHistory(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const history: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    if (!item.trim() || history.at(-1) === item) continue;
+    history.push(item);
+  }
+  return history.slice(-MAX_COMMAND_HISTORY);
 }
 
 /** 某关卡是否已完成 */

@@ -9,17 +9,20 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   currentLessonId,
+  getGitCompletionCandidates,
   gotoLesson,
   initEngine,
   isCompleted,
   lessonCount,
   runGit,
+  shutdownEngine,
 } from "../../src/tui/engine";
+import { handleInput } from "../../src/tui/commands";
 import { gitStatus, sessionMessages } from "../../src/tui/store";
 
 describe("TUI 引擎串联判题流程", () => {
@@ -63,6 +66,42 @@ describe("TUI 引擎串联判题流程", () => {
       );
       expect(passed).toBe(true);
     } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  test("关闭或重建引擎会删除旧会话", async () => {
+    const base = await mkdtemp(join(tmpdir(), "lgi-engine-cleanup-"));
+    try {
+      await initEngine({ baseDir: base });
+      expect((await readdir(join(base, "sessions"))).length).toBe(1);
+
+      await shutdownEngine();
+      expect(await readdir(join(base, "sessions"))).toEqual([]);
+    } finally {
+      await shutdownEngine();
+      await rm(base, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  test("/write 对 gitignore 关卡写入文件，并提供命令和路径补全", async () => {
+    const base = await mkdtemp(join(tmpdir(), "lgi-engine-write-"));
+    try {
+      await initEngine({ baseDir: base });
+      for (let i = 1; i <= lessonCount(); i += 1) {
+        await gotoLesson(i);
+        if (currentLessonId() === "basics.gitignore") break;
+      }
+      expect(currentLessonId()).toBe("basics.gitignore");
+
+      expect(await getGitCompletionCandidates("git a")).toContain("git add");
+      await handleInput("/write .gitignore *.log");
+      expect(await getGitCompletionCandidates("git add .g")).toContain("git add .gitignore");
+      await runGit("git add .gitignore");
+      await runGit('git commit -m "忽略日志"');
+      expect(isCompleted("basics.gitignore")).toBe(true);
+    } finally {
+      await shutdownEngine();
       await rm(base, { recursive: true, force: true });
     }
   }, 120_000);

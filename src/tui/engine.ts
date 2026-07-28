@@ -6,14 +6,23 @@
  */
 
 import type { Chapter, Lesson } from "../course/schema";
+import { mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
 import { substituteLesson } from "../course/substitute";
 import type { UserProfile } from "../progress/store";
 import { type LoadedCourse, loadCourse } from "../course/loader";
 import type { CapabilityPolicy } from "../git/capability_policy";
 import { execGit, runUserGitCommand } from "../git/runner";
+import { resolveSafePathInsideRepo } from "../git/path_guard";
 import { grade } from "../grader/grader";
 import { buildFixture } from "../sandbox/fixtures";
-import { createSession, newSessionId, type SessionPaths } from "../sandbox/session";
+import {
+  createSession,
+  destroySessionPaths,
+  newSessionId,
+  pruneStaleSessions,
+  type SessionPaths,
+} from "../sandbox/session";
 import {
   addMessage,
   type GitStatus,
@@ -40,10 +49,17 @@ interface EngineState {
   autograde: boolean;
   completed: Set<string>;
   /** 关卡通关回调（由 TUI 层用于持久化进度） */
-  onComplete?: (lessonId: string) => void;
+  onComplete?: (lessonId: string) => Promise<void> | void;
 }
 
 let state: EngineState | null = null;
+
+/** 关闭当前引擎并删除它拥有的临时 Git 会话；可重复调用。 */
+export async function shutdownEngine(): Promise<void> {
+  const previous = state;
+  state = null;
+  if (previous) await destroySessionPaths(previous.session);
+}
 
 function requireState(): EngineState {
   if (!state) throw new Error("引擎尚未初始化");
@@ -63,6 +79,7 @@ function currentPolicy(): CapabilityPolicy {
   return {
     commands: lesson.capabilities.commands,
     deniedFlags: lesson.capabilities.deniedFlags,
+    config: lesson.capabilities.config,
   };
 }
 
@@ -77,13 +94,15 @@ export async function initEngine(
     /** 已完成的关卡（用于恢复进度） */
     completed?: Record<string, number>;
     /** 关卡通关回调（用于持久化进度） */
-    onComplete?: (lessonId: string) => void;
+    onComplete?: (lessonId: string) => Promise<void> | void;
   } = {},
 ): Promise<void> {
+  await shutdownEngine();
   const loaded = await loadCourse("zh-CN");
   const sessionId = newSessionId();
   // 允许通过环境变量 LEARN_GIT_SESSION_DIR 重定向会话目录（主要用于测试隔离）
   const baseDir = opts.baseDir ?? process.env.LEARN_GIT_SESSION_DIR;
+  await pruneStaleSessions(baseDir);
   const session = await createSession(sessionId, baseDir);
   const user: UserProfile = opts.user ?? { name: "", email: "" };
 
@@ -120,7 +139,12 @@ export async function initEngine(
   };
   setAutograde(true);
 
-  await enterLesson(0, { announce: true });
+  try {
+    await enterLesson(0, { announce: true });
+  } catch (error) {
+    await shutdownEngine();
+    throw error;
+  }
 }
 
 /** 从章节 id（如 ch03-branch）取出章号前缀（如 "3"），用于匹配 lesson.source.chapter（如 "3.2"） */
@@ -230,6 +254,80 @@ export async function runGit(input: string): Promise<void> {
   }
 }
 
+/**
+ * 写入当前实验仓库内的文件。该内置命令不经过 shell 或 Git，路径仍与 Git
+ * 参数使用同一套真实路径边界检查。
+ */
+export async function writeCourseFile(path: string, content: string): Promise<void> {
+  const s = requireState();
+  const target = resolveSafePathInsideRepo(s.session.learnerRepo, path);
+  const text = content.endsWith("\n") ? content : `${content}\n`;
+  await mkdir(dirname(target), { recursive: true });
+  await Bun.write(target, text);
+  addMessage("system", `📝 已写入 ${path}`);
+  await refreshStatus();
+  if (s.autograde) await gradeCurrent({ silentOnFail: true });
+}
+
+const PATH_COMPLETION_COMMANDS = new Set([
+  "add",
+  "blame",
+  "check-attr",
+  "check-ignore",
+  "checkout",
+  "clean",
+  "diff",
+  "grep",
+  "hash-object",
+  "mv",
+  "reset",
+  "restore",
+  "rm",
+  "status",
+  "switch",
+]);
+
+/** 当前关卡允许的 Git 子命令与实验仓库路径的补全候选。 */
+export async function getGitCompletionCandidates(input: string): Promise<string[]> {
+  const s = requireState();
+  const leading = input.match(/^\s*/)?.[0] ?? "";
+  const body = input.slice(leading.length);
+  if (!body.startsWith("git") || (body.length > 3 && !/\s/.test(body[3] ?? ""))) return [];
+
+  const tokens = body.trimStart().split(/\s+/);
+  const commandPrefix = body.slice(3).trim();
+  if (tokens.length === 1 || (tokens.length === 2 && !/\s$/.test(body))) {
+    return currentPolicy()
+      .commands.filter((command) => command.startsWith(commandPrefix))
+      .map((command) => `${leading}git ${command}`)
+      .sort();
+  }
+
+  const subcommand = tokens[1] ?? "";
+  if (!PATH_COMPLETION_COMMANDS.has(subcommand)) return [];
+  const prefix = /\s$/.test(input) ? "" : (tokens.at(-1) ?? "");
+  if (prefix.includes(" ")) return [];
+
+  const result = await execGit(["ls-files", "--cached", "--others", "--exclude-standard"], {
+    cwd: s.session.learnerRepo,
+    session: s.session,
+  });
+  if (!result.ok) return [];
+
+  const paths = new Set<string>();
+  for (const file of result.stdout.split("\n").filter(Boolean)) {
+    if (/\s/.test(file)) continue;
+    paths.add(file);
+    const segments = file.split("/");
+    for (let i = 1; i < segments.length; i += 1) paths.add(`${segments.slice(0, i).join("/")}/`);
+  }
+  const before = input.slice(0, input.length - prefix.length);
+  return [...paths]
+    .filter((path) => path.startsWith(prefix))
+    .sort()
+    .map((path) => `${before}${path}`);
+}
+
 /** 判定当前关卡；silentOnFail 时未通过不打扰（用于自动判题） */
 export async function gradeCurrent(opts: { silentOnFail?: boolean } = {}): Promise<void> {
   const s = requireState();
@@ -238,8 +336,16 @@ export async function gradeCurrent(opts: { silentOnFail?: boolean } = {}): Promi
 
   if (outcome.passed) {
     const already = s.completed.has(lesson.id);
-    s.completed.add(lesson.id);
-    s.onComplete?.(lesson.id);
+    if (!already) {
+      s.completed.add(lesson.id);
+      try {
+        await s.onComplete?.(lesson.id);
+      } catch (error) {
+        s.completed.delete(lesson.id);
+        refreshProgress();
+        throw error;
+      }
+    }
     refreshProgress();
     if (!already) {
       addMessage("result", `✅ 通关：${lesson.title}`);

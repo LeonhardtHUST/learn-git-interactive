@@ -19,10 +19,11 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CapturedFrame } from "@opentui/core";
-import App, { prepareCourse } from "../../src/tui/app";
+import App, { prepareCourse, Root } from "../../src/tui/app";
 import { LoginScreen } from "../../src/tui/login";
-import { initEngine } from "../../src/tui/engine";
-import type { UserProfile } from "../../src/progress/store";
+import { initEngine, nextLesson, runGit, shutdownEngine } from "../../src/tui/engine";
+import { loadConfig, type UserProfile } from "../../src/progress/store";
+import { setScreen } from "../../src/tui/store";
 
 async function withEnv(base: string, fn: () => Promise<void>) {
   const configPath = join(base, ".learn-git-interactive.json");
@@ -70,7 +71,69 @@ async function waitForCaptured(
   throw new Error("Timeout waiting for onComplete callback");
 }
 
+async function waitForFrame(
+  setup: { captureCharFrame: () => string; renderOnce: () => Promise<void> },
+  predicate: (frame: string) => boolean,
+  timeoutMs = 10_000,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  let frame = "";
+  while (Date.now() < deadline) {
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    if (predicate(frame)) return frame;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timeout waiting for expected frame:\n${frame}`);
+}
+
 describe("登录流程", () => {
+  test("真实 Root：提交后停留课程准备页，确认后进入第一课", async () => {
+    const base = await mkdtemp(join(tmpdir(), "lgi-root-login-"));
+    try {
+      await withEnv(base, async () => {
+        const configFile = process.env.LEARN_GIT_CONFIG_FILE;
+        if (!configFile) throw new Error("LEARN_GIT_CONFIG_FILE not set");
+        setScreen("login");
+
+        const setup = await (await import("@opentui/solid")).testRender(() => <Root />);
+        await setup.waitFor(() => setup.captureCharFrame().includes("首次使用"), {
+          maxPasses: 200,
+        });
+
+        await setup.mockInput.typeText("李四");
+        await setup.renderOnce();
+        await setup.mockInput.pressEnter();
+        await setup.renderOnce();
+        await setup.waitForVisualIdle();
+        await setup.mockInput.typeText("lisi@example.com");
+        await setup.renderOnce();
+        await setup.mockInput.pressEnter();
+        await setup.renderOnce();
+
+        const welcomeFrame = await waitForFrame(
+          setup,
+          (frame) => frame.includes("欢迎，李四") && !frame.includes("进度 0/34"),
+        );
+        expect(welcomeFrame).toContain("正在准备课程");
+
+        await waitForFrame(setup, (frame) => frame.includes("开始第一课"));
+        await setup.mockInput.pressEnter();
+        await setup.renderOnce();
+        await waitForFrame(setup, (frame) => frame.includes("进度 0/34"));
+
+        const saved = JSON.parse(await readFile(configFile, "utf8")) as {
+          user: { name: string; email: string };
+        };
+        expect(saved.user).toEqual({ name: "李四", email: "lisi@example.com" });
+      });
+    } finally {
+      await shutdownEngine();
+      setScreen("login");
+      await rm(base, { recursive: true, force: true });
+    }
+  }, 60_000);
+
   test("登录 UI：填写姓名/邮箱并回车 → onComplete 收到正确身份", async () => {
     const captured: { current?: UserProfile } = {};
     const setup = await (await import("@opentui/solid")).testRender(() => (
@@ -220,6 +283,25 @@ describe("登录流程", () => {
         expect(saved.user.email).toBe("lisi@example.com");
       });
     } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  test("首次登录连续通关会累积保存全部进度", async () => {
+    const base = await mkdtemp(join(tmpdir(), "lgi-first-progress-"));
+    try {
+      await withEnv(base, async () => {
+        await prepareCourse({ name: "李四", email: "lisi@example.com" });
+        await runGit('git config --global user.name "李四"');
+        await runGit("git config --global user.email lisi@example.com");
+        await nextLesson();
+        await runGit("git init");
+
+        const saved = await loadConfig();
+        expect(Object.keys(saved.completedLessons).sort()).toEqual(["start.config", "start.init"]);
+      });
+    } finally {
+      await shutdownEngine();
       await rm(base, { recursive: true, force: true });
     }
   }, 60_000);

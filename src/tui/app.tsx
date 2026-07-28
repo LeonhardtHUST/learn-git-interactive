@@ -4,17 +4,26 @@
  * 五区域布局：顶栏 / 会话流 / Git 状态卡 / 提交图 / 底部输入
  */
 
-import { type CliRenderer, TextAttributes, createCliRenderer } from "@opentui/core";
+import {
+  type BoxRenderable,
+  type CliRenderer,
+  type KeyEvent,
+  TextAttributes,
+  createCliRenderer,
+} from "@opentui/core";
 import { render } from "@opentui/solid";
-import { For } from "solid-js";
+import { createSignal, For, onMount } from "solid-js";
 
 import { handleInput } from "./commands";
-import { initEngine } from "./engine";
+import { getGitCompletionCandidates, initEngine, shutdownEngine } from "./engine";
+import { slashCompletionCandidates } from "./command_catalog";
+import { CommandHistoryNavigator } from "./input_history";
 import { LoginScreen } from "./login";
 import { OpenCodeTheme } from "./theme";
 import {
   addMessage,
   autograde,
+  commandHistory,
   commitGraph,
   gitStatus,
   inputValue,
@@ -25,8 +34,10 @@ import {
   type SessionMessage,
   sessionMessages,
   setInputValue,
+  setCommandHistory,
   showCommitGraph,
   showGitStatus,
+  user,
 } from "./store";
 import {
   type SavedConfig,
@@ -34,7 +45,9 @@ import {
   hasIdentity,
   loadConfig,
   markLessonComplete,
-  saveConfig,
+  appendCommandHistory,
+  appendHistoryEntry,
+  updateConfig,
 } from "../progress/store";
 
 // ── 子组件：顶栏 ──────────────────────────────────────────
@@ -122,13 +135,85 @@ function GitStatusCard() {
 // ── 子组件：底部输入框 ────────────────────────────────────
 
 function BottomInput() {
+  const [completionHint, setCompletionHint] = createSignal("");
+  const historyNavigator = new CommandHistoryNavigator();
+  let completion: { candidates: string[]; index: number } | undefined;
+
+  const clearNavigation = () => {
+    historyNavigator.reset();
+    completion = undefined;
+    setCompletionHint("");
+  };
+
+  const saveHistory = (text: string) => {
+    const next = appendHistoryEntry(commandHistory(), text);
+    if (next !== commandHistory()) setCommandHistory(next);
+    void updateConfig((config) => appendCommandHistory(config, text)).catch((error: unknown) => {
+      addMessage(
+        "system",
+        `⚠ 命令历史保存失败：${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
+  };
+
   const handleSubmit = (value: unknown) => {
     const text = typeof value === "string" ? value : inputValue();
     if (!text.trim()) return;
+    saveHistory(text);
+    clearNavigation();
     setInputValue("");
     handleInput(text).catch((err: unknown) => {
       addMessage("system", `⚠ 处理命令时出错：${err instanceof Error ? err.message : String(err)}`);
     });
+  };
+
+  const browseHistory = (direction: -1 | 1) => {
+    const history = commandHistory();
+    const value =
+      direction < 0
+        ? historyNavigator.previous(history, inputValue())
+        : historyNavigator.next(history);
+    if (value === undefined) return;
+    setInputValue(value);
+    completion = undefined;
+    setCompletionHint("");
+  };
+
+  const completeInput = async () => {
+    const value = inputValue();
+    let candidates: string[];
+    if (completion?.candidates.includes(value)) {
+      candidates = completion.candidates;
+    } else if (value.trimStart().startsWith("/")) {
+      candidates = slashCompletionCandidates(value);
+    } else {
+      candidates = await getGitCompletionCandidates(value);
+    }
+    if (!candidates.length) {
+      completion = undefined;
+      setCompletionHint("");
+      return;
+    }
+    const index =
+      completion?.candidates === candidates ? (completion.index + 1) % candidates.length : 0;
+    completion = { candidates, index };
+    setInputValue(candidates[index] ?? "");
+    setCompletionHint(
+      candidates.length > 1 ? `Tab 补全：${candidates.slice(0, 3).join("  ")}` : "",
+    );
+  };
+
+  const onKeyDown = (event: KeyEvent) => {
+    if (event.name === "up") {
+      event.preventDefault();
+      browseHistory(-1);
+    } else if (event.name === "down") {
+      event.preventDefault();
+      browseHistory(1);
+    } else if (event.name === "tab") {
+      event.preventDefault();
+      void completeInput();
+    }
   };
 
   return (
@@ -137,11 +222,11 @@ function BottomInput() {
       borderColor={OpenCodeTheme.border}
       paddingLeft={1}
       paddingRight={1}
-      height={4}
+      height={5}
       flexDirection="column"
     >
       <text fg={OpenCodeTheme.textMuted} attributes={TextAttributes.DIM}>
-        ↑ 输入 Git 命令或 / 命令 | /help 查看帮助 | /quit 退出
+        ↑ 输入 Git 命令或 / 命令 | Tab 补全 | ↑↓ 历史 | /help 帮助
       </text>
       <input
         flexGrow={1}
@@ -154,8 +239,13 @@ function BottomInput() {
         focusedTextColor={OpenCodeTheme.text}
         placeholderColor={OpenCodeTheme.textMuted}
         onSubmit={handleSubmit}
-        onInput={(v: string) => setInputValue(v)}
+        onInput={(v: string) => {
+          setInputValue(v);
+          clearNavigation();
+        }}
+        onKeyDown={onKeyDown}
       />
+      {completionHint() ? <text fg={OpenCodeTheme.textMuted}>{completionHint()}</text> : null}
     </box>
   );
 }
@@ -199,6 +289,98 @@ function App() {
   );
 }
 
+const [courseReady, setCourseReady] = createSignal(false);
+const [courseInitError, setCourseInitError] = createSignal("");
+
+function startCourseSetup(u: SavedConfig["user"]): void {
+  setCourseReady(false);
+  setCourseInitError("");
+  void initCourseBackend(u)
+    .then(() => setCourseReady(true))
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      setCourseInitError(message);
+      addMessage("system", `⚠ 课程初始化失败：${message}`);
+    });
+}
+
+function beginFirstLesson(): void {
+  if (courseInitError()) {
+    startCourseSetup(user());
+    return;
+  }
+  if (courseReady()) setScreen("course");
+}
+
+function WelcomeScreen() {
+  let startButton: BoxRenderable | undefined;
+  onMount(() => startButton?.focus());
+
+  const onKeyDown = (event: KeyEvent) => {
+    if (event.name === "return" || event.name === "enter" || event.name === "space") {
+      event.preventDefault();
+      event.stopPropagation();
+      beginFirstLesson();
+    }
+  };
+
+  const ready = () => courseReady();
+  const error = () => courseInitError();
+  const buttonText = () => {
+    if (error()) return "重新准备课程";
+    return ready() ? "开始第一课" : "正在准备课程…";
+  };
+
+  return (
+    <box
+      width="100%"
+      height="100%"
+      backgroundColor={OpenCodeTheme.background}
+      flexDirection="column"
+      alignItems="center"
+      justifyContent="center"
+    >
+      <box
+        borderStyle="single"
+        borderColor={OpenCodeTheme.border}
+        padding={2}
+        width={60}
+        flexDirection="column"
+        backgroundColor={OpenCodeTheme.backgroundPanel}
+      >
+        <text fg={OpenCodeTheme.primary} attributes={TextAttributes.BOLD}>
+          {`🎓 欢迎，${user().name}！`}
+        </text>
+        <text fg={OpenCodeTheme.text}>你的 Git 身份已保存，练习将在隔离沙箱中进行。</text>
+        <text fg={OpenCodeTheme.textMuted} attributes={TextAttributes.DIM}>
+          第一课会带你配置 Git 的用户名和邮箱；真实电脑上的 Git 配置不会被修改。
+        </text>
+        {error() ? <text fg={OpenCodeTheme.error}>{`⚠ 准备失败：${error()}`}</text> : null}
+        <box marginTop={1} flexDirection="row" justifyContent="flex-end">
+          <box
+            ref={(el) => (startButton = el as BoxRenderable)}
+            paddingX={2}
+            backgroundColor={ready() || error() ? OpenCodeTheme.primary : OpenCodeTheme.selection}
+            focusable
+            onMouseDown={beginFirstLesson}
+            onKeyDown={onKeyDown}
+          >
+            <text
+              fg={ready() || error() ? OpenCodeTheme.background : OpenCodeTheme.textMuted}
+              attributes={TextAttributes.BOLD}
+            >
+              {buttonText()}
+            </text>
+          </box>
+        </box>
+        <text fg={OpenCodeTheme.textMuted} attributes={TextAttributes.DIM}>
+          {ready() ? "按 Enter 或点击按钮开始。" : "正在创建练习仓库，请稍候。"}
+        </text>
+      </box>
+    </box>
+  );
+}
+
 // ── 根组件：屏幕切换 ──────────────────────────────────────
 
 /**
@@ -209,8 +391,20 @@ function App() {
  * 追加到 renderer.root 上（旧根不卸载），导致两棵组件树竞争布局与焦点。
  * 因此屏幕切换必须由 Solid reconciler 通过信号完成，而非再次 render()。
  */
-function Root() {
-  return screen() === "login" ? <LoginScreen onComplete={enterCourse} /> : <App />;
+export function Root() {
+  // screen() 必须位于 JSX 子节点中，交给 Solid 编译器创建响应式插槽；
+  // 在组件顶层直接 return 三元表达式只会在首次挂载时读取一次信号。
+  return (
+    <box width="100%" height="100%" flexDirection="column">
+      {screen() === "login" ? (
+        <LoginScreen onComplete={enterCourse} />
+      ) : screen() === "welcome" ? (
+        <WelcomeScreen />
+      ) : (
+        <App />
+      )}
+    </box>
+  );
 }
 
 // ── 登录 → 主课程 的衔接 ──────────────────────────────────
@@ -220,17 +414,20 @@ function Root() {
  * 供 prepareCourse（测试入口）与 enterCourse（UI 入口）复用，避免逻辑重复。
  */
 async function initCourseBackend(u: SavedConfig["user"]): Promise<void> {
-  const cfg = await loadConfig();
-  const updated = { ...cfg, user: u };
-  await saveConfig(updated);
+  const updated = await updateConfig((config) => ({ ...config, user: u }));
+  setCommandHistory(updated.commandHistory);
   await initEngine({
     user: u,
     completed: updated.completedLessons,
-    onComplete: (lessonId: string) => {
-      const next = markLessonComplete(updated, lessonId);
-      void saveConfig(next);
-    },
+    onComplete: createCompletionSaver(),
   });
+}
+
+/** 串行保存进度，确保每一次完成都基于最新快照并已写入磁盘。 */
+function createCompletionSaver(): (lessonId: string) => Promise<void> {
+  return async (lessonId: string) => {
+    await updateConfig((config) => markLessonComplete(config, lessonId));
+  };
 }
 
 /**
@@ -244,25 +441,14 @@ export async function prepareCourse(u: SavedConfig["user"]): Promise<void> {
 }
 
 /**
- * 登录完成回调：立即切换到主课程界面，引擎在后台初始化（不阻塞 UI）。
- *
- * 关键：setScreen("course") 必须在 initEngine 之前同步执行——initEngine 会
- * 重建实验仓库、跑多个 git 命令（数秒），若等它完成才切屏幕，用户会感觉
- * 「点确认没反应」。先切屏幕让 App 立即显示（进度暂为「加载中」），引擎
- * 完成后通过 progress/gitStatus/sessionMessages 信号驱动 App 渐进更新。
+ * 登录完成回调：立即进入稳定的课程准备页；引擎在后台初始化，准备完毕后
+ * 由学习者确认进入第一课，避免欢迎内容被首关任务自动滚走。
  */
 export async function enterCourse(u: SavedConfig["user"]): Promise<void> {
   setUser(u);
   addMessage("system", `👋 欢迎，${u.name}！我们开始学习吧。输入 /lessons 查看全部课程。`);
-  // 立即切换屏幕：Solid reconciler 卸载 LoginScreen、挂载 App 并转移焦点
-  setScreen("course");
-  // 后台落盘并初始化引擎；失败时在主界面会话流里提示
-  try {
-    await initCourseBackend(u);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    addMessage("system", `⚠ 课程初始化失败：${msg}`);
-  }
+  setScreen("welcome");
+  startCourseSetup(u);
 }
 
 // ── 入口 ──────────────────────────────────────────────────
@@ -270,6 +456,7 @@ export async function enterCourse(u: SavedConfig["user"]): Promise<void> {
 // 全局复用同一个 CliRenderer：登录界面与主课程界面共享 stdin/stdout，
 // 避免切换时再次 createCliRenderer 触发 "stdin is already used" 错误。
 let renderer: CliRenderer | undefined;
+let signalHandlersInstalled = false;
 
 async function getRenderer(): Promise<CliRenderer> {
   if (!renderer || renderer.isDestroyed) {
@@ -280,6 +467,22 @@ async function getRenderer(): Promise<CliRenderer> {
 
 export default App;
 
+async function stopTui(exitCode: number): Promise<void> {
+  await shutdownEngine();
+  renderer?.destroy();
+  process.exit(exitCode);
+}
+
+function installSignalHandlers(): void {
+  if (signalHandlersInstalled) return;
+  signalHandlersInstalled = true;
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => {
+      void stopTui(0);
+    });
+  }
+}
+
 export async function startTui() {
   let cfg: SavedConfig;
   try {
@@ -287,7 +490,9 @@ export async function startTui() {
   } catch {
     cfg = defaultConfig();
   }
+  setCommandHistory(cfg.commandHistory);
   const r = await getRenderer();
+  installSignalHandlers();
   if (hasIdentity(cfg)) {
     setUser(cfg.user);
     setScreen("course"); // 有身份：Root 首次渲染即主课程界面
@@ -295,10 +500,7 @@ export async function startTui() {
       await initEngine({
         user: cfg.user,
         completed: cfg.completedLessons,
-        onComplete: (lessonId: string) => {
-          cfg = markLessonComplete(cfg, lessonId);
-          void saveConfig(cfg);
-        },
+        onComplete: createCompletionSaver(),
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -306,5 +508,9 @@ export async function startTui() {
     }
   }
   // 对同一 renderer 只 render 一次；后续屏幕切换全部经由 screen 信号
-  await render(() => <Root />, r);
+  try {
+    await render(() => <Root />, r);
+  } finally {
+    await shutdownEngine();
+  }
 }

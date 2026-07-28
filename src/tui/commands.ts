@@ -15,33 +15,38 @@ import {
   runGit,
   showStatus,
   showTask,
+  shutdownEngine,
   toggleAutograde,
+  writeCourseFile,
 } from "./engine";
+import { findSlashCommand, helpText } from "./command_catalog";
 import { addMessage, setShowCommitGraph, setViewMode, showCommitGraph } from "./store";
 
 /** 处理一行输入（/ 命令或 Git 命令）。返回后不再需要额外分发。 */
 export async function handleInput(text: string): Promise<void> {
-  const trimmed = text.trim();
-  if (!trimmed) return;
-  if (trimmed.startsWith("/")) {
-    await handleSlashCommand(trimmed);
+  const slashInput = text.trimStart();
+  if (!slashInput) return;
+  if (slashInput.startsWith("/")) {
+    // /write 的内容可能含有末尾空格，不能对斜杠命令做 trimEnd。
+    await handleSlashCommand(slashInput);
   } else {
-    await runGit(trimmed);
+    await runGit(text.trim());
   }
 }
 
 async function handleSlashCommand(input: string): Promise<void> {
-  const [cmd, ...rest] = input.split(/\s+/);
+  const [cmd = "", ...rest] = input.split(/\s+/);
   const arg = rest.join(" ").trim();
+  const rawArgument = input.slice(cmd.length).trimStart();
+  const command = findSlashCommand(cmd);
 
-  switch (cmd) {
-    case "/lessons":
+  switch (command?.id) {
+    case "lessons":
       setViewMode("lessons");
       listLessons();
       return;
 
-    case "/lesson":
-    case "/goto": {
+    case "lesson": {
       const n = Number.parseInt(arg, 10);
       if (Number.isNaN(n)) {
         addMessage("system", "用法：/lesson <序号>，例如 /lesson 3。输入 /lessons 查看列表。");
@@ -51,49 +56,57 @@ async function handleSlashCommand(input: string): Promise<void> {
       return;
     }
 
-    case "/next":
+    case "next":
       await nextLesson();
       return;
 
-    case "/prev":
-    case "/back":
+    case "prev":
       await prevLesson();
       return;
 
-    case "/grade":
-    case "/check":
+    case "grade":
       await gradeCurrent();
       return;
 
-    case "/autograde":
+    case "autograde":
       toggleAutograde();
       return;
 
-    case "/task":
+    case "task":
       showTask();
       return;
 
-    case "/status":
+    case "status":
       await showStatus();
       return;
 
-    case "/hint":
+    case "hint":
       nextHint();
       return;
 
-    case "/reset":
+    case "write": {
+      const match = rawArgument.match(/^(\S+)(?:\s+([\s\S]*))?$/);
+      if (!match || match[2] === undefined) {
+        addMessage("system", "用法：/write <文件名> <内容>。文件名不能包含空格。");
+        return;
+      }
+      await writeCourseFile(match[1] ?? "", match[2] ?? "");
+      return;
+    }
+
+    case "reset":
       await resetCurrent();
       setShowCommitGraph(false);
       return;
 
-    case "/graph": {
+    case "graph": {
       const expanded = !showCommitGraph();
       setShowCommitGraph(expanded);
       if (expanded) addMessage("system", "📈 提交关系图已展开（随命令实时更新）。");
       return;
     }
 
-    case "/themes":
+    case "themes":
       setViewMode("themes");
       addMessage(
         "system",
@@ -101,34 +114,15 @@ async function handleSlashCommand(input: string): Promise<void> {
       );
       return;
 
-    case "/help":
+    case "help":
       setViewMode("help");
-      addMessage(
-        "system",
-        `⌨ 可用命令：
-
-/lessons     浏览全部关卡（含完成标记）
-/lesson <n>  跳转到第 n 关
-/next /prev  切换到下一关 / 上一关
-/task        复看当前关卡任务
-/status      查看当前目标与仓库状态
-/grade       手动判题
-/autograde   开关自动判题（默认开）
-/hint        分级提示
-/reset       重建当前实验仓库
-/graph       展开/收起提交关系图
-/themes      主题（预留）
-/help        显示此帮助
-/quit        安全退出
-
-也可直接输入 Git 命令（如 git status、git add .），命令在隔离沙箱内真实执行。`,
-      );
+      addMessage("system", helpText());
       return;
 
-    case "/quit":
-    case "/exit":
+    case "quit":
       addMessage("system", "👋 再见！");
-      setTimeout(() => process.exit(0), 600);
+      await shutdownEngine();
+      process.exit(0);
       return;
 
     default:
