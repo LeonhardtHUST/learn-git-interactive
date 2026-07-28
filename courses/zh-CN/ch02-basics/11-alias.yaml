@@ -37,6 +37,12 @@ capabilities:
     - log
     - st
     - last
+  config:
+    allowedKeys:
+      - alias.st
+      - alias.last
+    allowedScopes:
+      - global
 checks:
   - type: alias_defined
     name: st

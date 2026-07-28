@@ -28,6 +28,12 @@ capabilities:
   commands:
     - config
     - help
+  config:
+    allowedKeys:
+      - user.name
+      - user.email
+    allowedScopes:
+      - global
 checks:
   - type: config_value
     key: user.name

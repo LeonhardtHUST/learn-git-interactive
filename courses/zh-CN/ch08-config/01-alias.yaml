@@ -27,6 +27,11 @@ capabilities:
     - status
     - log
     - help
+  config:
+    allowedKeys:
+      - alias.st
+    allowedScopes:
+      - global
 checks:
   - type: alias_defined
     name: st

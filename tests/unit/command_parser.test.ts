@@ -14,6 +14,10 @@ describe("tokenize", () => {
     expect(tokenize("git commit -m 'a \"b\" c'")).toEqual(["git", "commit", "-m", 'a "b" c']);
   });
 
+  test("保留 Windows 路径中的反斜杠", () => {
+    expect(tokenize("git add docs\\guide.md")).toEqual(["git", "add", "docs\\guide.md"]);
+  });
+
   test("未闭合引号报错", () => {
     expect(() => tokenize('git commit -m "oops')).toThrow(ParseError);
   });
@@ -40,6 +44,10 @@ describe("parseGitCommand", () => {
 
   test("拒绝命令替换", () => {
     expect(() => parseGitCommand("git commit -m $(whoami)")).toThrow(ParseError);
+  });
+
+  test("允许引号内的普通提交信息字符", () => {
+    expect(() => parseGitCommand('git commit -m "fix(parser): keep $HOME"')).not.toThrow();
   });
 
   test("拒绝重定向", () => {

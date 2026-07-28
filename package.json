@@ -4,17 +4,17 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run --watch src/main.ts",
-    "start": "bun run src/main.ts",
-    "check": "bun run fmt:check && bun run lint && bun run typecheck && bun test",
+    "dev": "bun run --preload @opentui/solid/preload --watch src/main.ts",
+    "start": "bun run --preload @opentui/solid/preload src/main.ts",
+    "check": "bun run fmt:check && bun run lint && bun run typecheck && bun run test",
     "fmt": "biome format --write .",
     "fmt:check": "biome format .",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "typecheck": "tsc --noEmit",
-    "test": "bun test --timeout 120000",
-    "test:e2e": "bun test tests/e2e/",
-    "compile": "bun build ./src/main.ts --outdir ./dist --target bun"
+    "test": "bun test --preload @opentui/solid/preload --timeout 120000",
+    "test:e2e": "bun test --preload @opentui/solid/preload tests/e2e/",
+    "compile": "bun run scripts/build.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.5",

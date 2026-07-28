@@ -7,6 +7,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { parse } from "yaml";
+import { COURSE_CATALOG } from "./catalog";
 import {
   type Chapter,
   ChapterSchema,
@@ -44,22 +45,29 @@ export async function loadLesson(path: string): Promise<Lesson> {
 
 /** 加载整个课程目录 */
 export async function loadCourse(locale = "zh-CN"): Promise<LoadedCourse> {
-  const root = coursesDir(locale);
-
-  const courseRaw = await readYaml(join(root, "course.yaml"));
+  if (locale !== "zh-CN") throw new Error(`未内置的课程语言：${locale}`);
+  const catalog = COURSE_CATALOG[locale];
+  const courseRaw = parse(catalog.course);
   const course = CourseSchema.parse(courseRaw);
 
   const chapters: Chapter[] = [];
   const lessons = new Map<string, Lesson>();
 
   for (const chapterId of course.chapters) {
-    const chapterDir = join(root, chapterId);
-    const chapterRaw = await readYaml(join(chapterDir, "chapter.yaml"));
+    const chapterCatalog = catalog.chapters[chapterId];
+    if (!chapterCatalog) throw new Error(`课程目录缺少章节：${chapterId}`);
+    const chapterRaw = parse(chapterCatalog.chapter);
     const chapter = ChapterSchema.parse(chapterRaw);
     chapters.push(chapter);
 
     for (const lessonFile of chapter.lessons) {
-      const lesson = await loadLesson(join(chapterDir, lessonFile));
+      const lessonText = chapterCatalog.lessons[lessonFile];
+      if (!lessonText) throw new Error(`章节 ${chapterId} 缺少关卡文件：${lessonFile}`);
+      const result = LessonSchema.safeParse(parse(lessonText));
+      if (!result.success) {
+        throw new Error(`内置关卡 ${chapterId}/${lessonFile} 校验失败：\n${result.error.message}`);
+      }
+      const lesson = result.data;
       if (lessons.has(lesson.id)) {
         throw new Error(`关卡 id 重复：${lesson.id}`);
       }

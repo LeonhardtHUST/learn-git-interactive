@@ -27,6 +27,11 @@ capabilities:
     - status
     - log
     - help
+  config:
+    allowedKeys:
+      - core.quotepath
+    allowedScopes:
+      - global
 checks:
   - type: config_value
     key: core.quotepath

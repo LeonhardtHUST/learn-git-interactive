@@ -13,8 +13,8 @@
   只放行本地 `file` 协议远程，绝不读取或修改你的真实 Git 配置。
 - **按状态判题**：判题器检查工作区、暂存区、提交树、分支、标签、远程跟踪、冲突、
   reflog、对象类型等真实状态，同一目标允许多种正确命令序列。
-- **MVP 课程**：22 个可连续学习的实验，覆盖《Pro Git》第 1～3 章与第 7 章高频工具
-  （从 `init` 一路学到 `rebase` / `reflog` / `stash`）。
+- **完整课程**：34 个可连续学习的实验，覆盖 10 个章节的 Git 起步、基础、分支、协议、
+  分布式协作、GitHub 工作流、工具、配置、迁移与内部原理。
 - **进度持久化**：完成的关卡写入用户数据目录，退出后可恢复。
 - **课程契约测试**：自动回放每道关卡的参考解法并断言可通关，作为关卡可解性的硬性保证。
 
@@ -33,7 +33,8 @@ bun run dev            # 启动课程（开发模式，带文件监听）
 bun run start          # 启动课程
 bun run check          # 质量门禁：格式 + lint + 类型检查 + 测试
 bun run test           # 仅运行测试（含课程契约测试与安全回归测试）
-bun run compile        # 编译为独立可执行文件到 ./dist
+bun run compile        # 编译为当前平台的单文件可执行程序到 ./dist
+./dist/learn-git-interactive --self-test  # 非交互检查：课程资源 + 系统 Git
 ```
 
 ### 课程结构
@@ -65,11 +66,15 @@ bun run compile        # 编译为独立可执行文件到 ./dist
   `HOME` 等；`GIT_CONFIG_GLOBAL` 指向会话内的沙箱配置。
 - 用户输入**不经过 shell**：词法解析 → 关卡能力策略 → 路径边界检查 → 参数数组 → Git。
 - 默认拒绝 `-C` / `-c` / `--git-dir` / `--work-tree` 等全局参数，拒绝绝对路径、`..` 逃逸、
-  拒绝 shell alias（`alias.*=!…`）与外部命令配置。
-- 运行时禁用 hook、credential helper、外部 pager/editor 与网络协议，仅允许本地 `file` remote。
+  URI 与 shell 控制语法；`--option=路径` 也受同样检查。
+- `git config` 写入按关卡白名单限制键与作用域；Git alias 只能展开为当前关卡开放的内建命令，
+  不允许 shell alias、外部配置文件或外部命令配置。
+- 运行时禁用 hook、credential helper、外部 pager/editor 与网络协议；课程远程均由沙箱 fixture
+  预配置为本地 bare 仓库，用户命令不能指定 URI。
+- 正常退出会删除当前实验会话；异常留下的会话将在超过 7 天后自动回收。
 
-上述约束由 `tests/integration/security.test.ts` 的 7 项安全回归测试守护
-（恶意伪环境被忽略、真实配置哈希不变、来源仅沙箱、危险参数被拒、bare remote 正常）。
+上述约束由安全、路径和沙箱回归测试守护（恶意伪环境被忽略、真实配置哈希不变、
+shell alias 与路径/URI 逃逸被拒、bare remote 正常）。
 
 ## 授权与许可
 

@@ -8,8 +8,21 @@
  */
 
 import { startTui } from "./tui/app";
+import { loadCourse } from "./course/loader";
+import { gitVersion } from "./git/executable";
+
+/** 编译产物与安装环境的非交互自检入口。 */
+export async function selfTest(): Promise<void> {
+  const course = await loadCourse();
+  const version = await gitVersion();
+  console.log(`learn-git-interactive ok: ${course.lessons.size} lessons; ${version}`);
+}
 
 export async function main(): Promise<void> {
+  if (Bun.argv.includes("--self-test")) {
+    await selfTest();
+    return;
+  }
   await startTui();
 }
 

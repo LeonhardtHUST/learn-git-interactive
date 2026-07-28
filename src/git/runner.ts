@@ -72,7 +72,7 @@ export async function runUserGitCommand(input: string, options: RunOptions): Pro
   try {
     parsed = parseGitCommand(input);
     enforcePolicy(parsed, options.policy ?? OPEN_POLICY);
-    assertSafeCommandPaths(parsed.args);
+    assertSafeCommandPaths(parsed.args, options.cwd, parsed.subcommand);
   } catch (error) {
     if (
       error instanceof ParseError ||

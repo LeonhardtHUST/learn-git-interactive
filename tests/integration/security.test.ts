@@ -168,12 +168,33 @@ describe("安全回归 5：危险参数与路径逃逸被拒绝", () => {
       "git status --work-tree=/tmp/evil",
       "git add ../../etc/passwd",
       "git add /abs/path",
+      "git config --file=../../outside.gitconfig user.name learner",
+      "git clone file:///tmp/outside.git escaped",
     ];
     for (const cmd of cases) {
       const result = await runUserGitCommand(cmd, { cwd: repo, session });
       expect(result.rejected).toBeTruthy();
       expect(result.ok).toBe(false);
     }
+  });
+
+  test("分离参数 shell alias 在执行前被拒绝", async () => {
+    await execGit(["init", "alias-probe"], { cwd: session.repos, session });
+    const repo = join(session.repos, "alias-probe");
+    const result = await runUserGitCommand('git config --global alias.st "!whoami"', {
+      cwd: repo,
+      session,
+      policy: {
+        commands: ["config", "st", "status"],
+        config: { allowedKeys: ["alias.st"], allowedScopes: ["global"] },
+      },
+    });
+    expect(result.rejected).toContain("shell alias");
+    const configured = await execGit(["config", "--global", "--get", "alias.st"], {
+      cwd: repo,
+      session,
+    });
+    expect(configured.ok).toBe(false);
   });
 });
 

@@ -124,10 +124,21 @@ export const LessonSchema = z.object({
     fixture: z.array(FixtureStepSchema).default([{ action: "init" }]),
   }),
   objectives: z.array(z.string()).min(1),
-  capabilities: z.object({
-    commands: z.array(z.string()).min(1),
-    deniedFlags: z.record(z.string(), z.array(z.string())).optional(),
-  }),
+  capabilities: z
+    .object({
+      commands: z.array(z.string()).min(1),
+      deniedFlags: z.record(z.string(), z.array(z.string())).optional(),
+      config: z
+        .object({
+          allowedKeys: z.array(z.string()).min(1),
+          allowedScopes: z.array(z.enum(["global", "local"])).min(1),
+        })
+        .optional(),
+    })
+    .refine((capabilities) => !capabilities.commands.includes("config") || capabilities.config, {
+      message: "开放 config 命令时必须声明 config 白名单。",
+      path: ["config"],
+    }),
   checks: z.array(CheckSchema).min(1),
   hints: z.array(z.string()).min(1),
   /** 通关后的解释说明 */

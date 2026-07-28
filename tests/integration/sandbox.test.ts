@@ -3,12 +3,13 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdtemp, rm, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildGitEnvironment } from "../../src/git/environment";
 import { execGit, runUserGitCommand } from "../../src/git/runner";
-import { createSession, type SessionPaths } from "../../src/sandbox/session";
+import { createSession, pruneStaleSessions, type SessionPaths } from "../../src/sandbox/session";
 
 let base: string;
 let session: SessionPaths;
@@ -104,5 +105,23 @@ describe("完整用户命令流程", () => {
 
     const fetch = await execGit(["fetch", "origin"], { cwd: repo, session });
     expect(fetch.ok).toBe(true);
+  });
+});
+
+describe("会话生命周期", () => {
+  test("过期会话会被回收，最近会话保持不变", async () => {
+    const lifecycleBase = await mkdtemp(join(tmpdir(), "lgi-prune-"));
+    try {
+      const stale = await createSession("stale", lifecycleBase);
+      const fresh = await createSession("fresh", lifecycleBase);
+      const old = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+      await utimes(stale.root, old, old);
+
+      await pruneStaleSessions(lifecycleBase);
+      expect(existsSync(stale.root)).toBe(false);
+      expect(existsSync(fresh.root)).toBe(true);
+    } finally {
+      await rm(lifecycleBase, { recursive: true, force: true });
+    }
   });
 });

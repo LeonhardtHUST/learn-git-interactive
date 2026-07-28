@@ -5,7 +5,7 @@
  * 保证课程练习不会读取或修改用户真实 Git 环境。
  */
 
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 /** 会话目录布局 */
@@ -125,7 +125,33 @@ export async function createSession(sessionId: string, baseDir?: string): Promis
 /** 删除整个会话目录 */
 export async function destroySession(sessionId: string, baseDir?: string): Promise<void> {
   const paths = sessionPaths(sessionId, baseDir);
+  await destroySessionPaths(paths);
+}
+
+/** 删除已解析的会话目录，供引擎在正常退出时使用。 */
+export async function destroySessionPaths(paths: SessionPaths): Promise<void> {
   await rm(paths.root, { recursive: true, force: true });
+}
+
+/** 清理应用自己创建且超过保留期的旧会话；不跟随符号链接。 */
+export async function pruneStaleSessions(
+  baseDir?: string,
+  maxAgeMs = 7 * 24 * 60 * 60 * 1000,
+): Promise<void> {
+  const root = join(baseDir ?? appDataDir(), "sessions");
+  const entries = await readdir(root, { withFileTypes: true }).catch(() => undefined);
+  if (!entries) return;
+  const cutoff = Date.now() - maxAgeMs;
+  await Promise.all(
+    entries.map(async (entry) => {
+      if (!entry.isDirectory()) return;
+      const target = join(root, entry.name);
+      const metadata = await stat(target).catch(() => undefined);
+      if (metadata && metadata.mtimeMs < cutoff) {
+        await rm(target, { recursive: true, force: true });
+      }
+    }),
+  );
 }
 
 /** 仅重建实验仓库目录（/reset：保留配置与进度） */

@@ -18,14 +18,22 @@ export class ParseError extends Error {}
 
 /**
  * 将一行输入切分为词元。
- * 支持双引号、单引号和反斜杠转义；**不支持**任何 shell 展开
+ * 支持双引号与单引号；反斜杠按字面保留以兼容 Windows 路径；**不支持**任何 shell 展开
  * （管道、重定向、变量、通配符都按普通字符或直接拒绝处理）。
  */
-export function tokenize(input: string): string[] {
-  const tokens: string[] = [];
+interface LexedToken {
+  value: string;
+  /** token 是否含有未被引号保护的 shell 控制字符 */
+  unquotedShellMeta: boolean;
+}
+
+/** 带引号来源信息的词法器；公开 tokenize 仍只返回参数数组。 */
+function lex(input: string): LexedToken[] {
+  const tokens: LexedToken[] = [];
   let current = "";
   let quote: '"' | "'" | null = null;
   let hasToken = false;
+  let unquotedShellMeta = false;
 
   for (let i = 0; i < input.length; i++) {
     const ch = input[i] as string;
@@ -46,26 +54,28 @@ export function tokenize(input: string): string[] {
       hasToken = true;
       continue;
     }
-    if (ch === "\\" && i + 1 < input.length) {
-      current += input[++i];
-      hasToken = true;
-      continue;
-    }
     if (/\s/.test(ch)) {
       if (hasToken || current.length > 0) {
-        tokens.push(current);
+        tokens.push({ value: current, unquotedShellMeta });
         current = "";
         hasToken = false;
+        unquotedShellMeta = false;
       }
       continue;
     }
+    // 本程序不经过 shell；保留 Windows 路径中的反斜杠，而不是把它当作转义符。
+    if (SHELL_META.test(ch)) unquotedShellMeta = true;
     current += ch;
     hasToken = true;
   }
 
   if (quote !== null) throw new ParseError("引号未闭合。");
-  if (hasToken || current.length > 0) tokens.push(current);
+  if (hasToken || current.length > 0) tokens.push({ value: current, unquotedShellMeta });
   return tokens;
+}
+
+export function tokenize(input: string): string[] {
+  return lex(input).map((token) => token.value);
 }
 
 /** shell 元字符：出现在词元中时直接拒绝，防止用户误以为支持 shell 语法 */
@@ -76,13 +86,14 @@ export function parseGitCommand(input: string): ParsedCommand {
   const trimmed = input.trim();
   if (!trimmed) throw new ParseError("请输入命令。");
 
-  const tokens = tokenize(trimmed);
+  const lexed = lex(trimmed);
+  const tokens = lexed.map((token) => token.value);
   if (tokens.length === 0) throw new ParseError("请输入命令。");
 
-  for (const token of tokens) {
-    if (SHELL_META.test(token)) {
+  for (const token of lexed) {
+    if (token.unquotedShellMeta) {
       throw new ParseError(
-        `不支持 shell 语法：'${token}'。本课程只执行单条 Git 命令，不经过 shell。`,
+        `不支持 shell 语法：'${token.value}'。本课程只执行单条 Git 命令，不经过 shell。`,
       );
     }
   }

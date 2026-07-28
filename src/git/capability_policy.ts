@@ -4,7 +4,7 @@
  * 每个关卡只开放必要的 Git 子命令和选项；全局危险参数一律拒绝。
  */
 
-import type { ParsedCommand } from "./command_parser";
+import { tokenize, type ParsedCommand } from "./command_parser";
 
 export class PolicyViolation extends Error {}
 
@@ -57,6 +57,16 @@ export interface CapabilityPolicy {
   commands: string[];
   /** 每个子命令额外禁止的选项（可选） */
   deniedFlags?: Record<string, string[]>;
+  /** config 子命令的写入能力；未声明时不允许写配置 */
+  config?: ConfigCapabilityPolicy;
+}
+
+/** 单个关卡允许写入的 Git 配置范围 */
+export interface ConfigCapabilityPolicy {
+  /** 允许写入的配置键 */
+  allowedKeys: string[];
+  /** 允许的写入作用域 */
+  allowedScopes: Array<"global" | "local">;
 }
 
 /** 面向自由练习的宽松策略（仍然拒绝全局危险参数） */
@@ -140,6 +150,10 @@ export const OPEN_POLICY: CapabilityPolicy = {
     "whatchanged",
     "maintenance",
   ],
+  config: {
+    allowedKeys: ["user.name", "user.email", "alias.st", "alias.last", "core.quotepath"],
+    allowedScopes: ["global", "local"],
+  },
 };
 
 /** 校验一条已解析命令是否被策略允许；违规时抛出 PolicyViolation */
@@ -172,59 +186,86 @@ export function enforcePolicy(cmd: ParsedCommand, policy: CapabilityPolicy): voi
     if (denied.has(arg)) {
       throw new PolicyViolation(`当前关卡不允许使用 '${arg}'。`);
     }
-    // config 子命令的额外限制：拒绝 shell alias 和外部命令配置
-    if (cmd.subcommand === "config") {
-      enforceConfigRestrictions(arg);
-    }
   }
+
+  if (cmd.subcommand === "config") enforceConfigPolicy(cmd.args, policy);
 }
 
-/** 拒绝 alias.*=!…、core.sshCommand 等外部命令配置 */
-const DANGEROUS_CONFIG_KEYS = [
-  "core.sshcommand",
-  "core.fsmonitor",
-  "core.editor",
-  "core.pager",
-  "core.hookspath",
-  "core.askpass",
-  "gpg.program",
-  "credential.helper",
-  "http.proxy",
-  "protocol.ext.allow",
-  "uploadpack.allowanysha1inwant",
-  "sendemail.smtpserver",
-  "diff.external",
-  "merge.tool",
-  "mergetool.",
-  "difftool.",
-  "filter.",
-];
+const CONFIG_READ_FLAGS = new Set([
+  "--list",
+  "--get",
+  "--get-all",
+  "--get-regexp",
+  "--show-origin",
+  "--show-scope",
+]);
+const CONFIG_SCOPE_FLAGS = new Set(["--global", "--local"]);
 
-function enforceConfigRestrictions(arg: string): void {
-  const lower = arg.toLowerCase();
-  for (const key of DANGEROUS_CONFIG_KEYS) {
-    if (lower === key || lower.startsWith(key)) {
-      throw new PolicyViolation(`配置项 '${arg}' 涉及外部命令执行，课程内不允许设置。`);
+/**
+ * 课程只需有限的 config 读写形式。显式解析这些形式比维护危险配置黑名单可靠：
+ * 任何写入都必须落在关卡声明的键与作用域内，文件/包含/外部命令类选项自然不可达。
+ */
+function enforceConfigPolicy(args: string[], policy: CapabilityPolicy): void {
+  const config = policy.config;
+  const flags = args.filter((arg) => arg.startsWith("-"));
+  const positional = args.filter((arg) => !arg.startsWith("-"));
+  const scopes = flags.filter((arg) => CONFIG_SCOPE_FLAGS.has(arg));
+  const readFlags = flags.filter((arg) => CONFIG_READ_FLAGS.has(arg));
+
+  for (const flag of flags) {
+    if (!CONFIG_SCOPE_FLAGS.has(flag) && !CONFIG_READ_FLAGS.has(flag)) {
+      throw new PolicyViolation(`课程内不支持 git config 参数 '${flag}'。`);
     }
   }
-  // alias.xxx=!cmd 形式：alias 值以 ! 开头会执行 shell 命令
-  if (lower.startsWith("alias.")) {
-    const eq = arg.indexOf("=");
-    if (
-      eq !== -1 &&
-      arg
-        .slice(eq + 1)
-        .trimStart()
-        .startsWith("!")
-    ) {
-      throw new PolicyViolation("不允许设置以 '!' 开头的 shell alias。");
-    }
+  if (
+    scopes.length > 1 ||
+    readFlags.filter((flag) => !["--show-origin", "--show-scope"].includes(flag)).length > 1
+  ) {
+    throw new PolicyViolation("git config 参数组合无效。");
   }
+
+  const hasReadAction = readFlags.some((flag) => !["--show-origin", "--show-scope"].includes(flag));
+  if (hasReadAction || readFlags.includes("--list") || positional.length <= 1) {
+    if (positional.length > 1) {
+      throw new PolicyViolation("课程内只允许读取单个 Git 配置项。");
+    }
+    return;
+  }
+
+  if (!config) {
+    throw new PolicyViolation("当前关卡不允许写入 Git 配置。");
+  }
+  if (positional.length !== 2) {
+    throw new PolicyViolation("课程内配置写入格式为：git config --global <键> <值>。");
+  }
+
+  const scope = scopes[0];
+  if (!scope || !config.allowedScopes.includes(scope.slice(2) as "global" | "local")) {
+    throw new PolicyViolation("当前关卡只允许写入指定作用域的 Git 配置。");
+  }
+
+  const [key, value] = positional as [string, string];
+  if (!config.allowedKeys.includes(key)) {
+    throw new PolicyViolation(`当前关卡不允许写入配置项 '${key}'。`);
+  }
+  if (key.toLowerCase().startsWith("alias.")) enforceSafeAliasValue(key, value, policy);
 }
 
-/** 校验 alias 值本身（用于 git config alias.x '!cmd' 分离参数的场景） */
-export function enforceAliasValue(key: string, value: string): void {
-  if (key.toLowerCase().startsWith("alias.") && value.trimStart().startsWith("!")) {
+/** alias 只能展开为当前关卡允许的内建 Git 子命令，不能进入 shell 或再次跳转 alias。 */
+function enforceSafeAliasValue(key: string, value: string, policy: CapabilityPolicy): void {
+  if (value.trimStart().startsWith("!")) {
     throw new PolicyViolation("不允许设置以 '!' 开头的 shell alias。");
   }
+  const tokens = tokenize(value);
+  const subcommand = tokens[0];
+  if (!subcommand || subcommand.startsWith("-") || subcommand === "config") {
+    throw new PolicyViolation(`别名 '${key}' 必须指向已开放的 Git 子命令。`);
+  }
+  const aliasNames = policy.config?.allowedKeys
+    .filter((allowed) => allowed.startsWith("alias."))
+    .map((allowed) => allowed.slice("alias.".length));
+  if (aliasNames?.includes(subcommand) || !policy.commands.includes(subcommand)) {
+    throw new PolicyViolation(`别名 '${key}' 必须指向当前关卡已开放的真实 Git 子命令。`);
+  }
+  enforcePolicy({ program: "git", subcommand, args: tokens.slice(1) }, policy);
 }
